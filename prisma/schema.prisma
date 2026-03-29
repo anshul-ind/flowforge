@@ -1,0 +1,82 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id          String         @id @default(cuid())
+  name        String
+  email       String         @unique
+  password    String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  memberships TenantMember[]
+  assignedTasks Task[]       @relation("TaskAssignee")
+}
+
+model Tenant {
+  id        String         @id @default(cuid())
+  name      String
+  slug      String         @unique
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  members   TenantMember[]
+  projects  Project[]
+}
+
+model TenantMember {
+  id       String @id @default(cuid())
+  role     String @default("member")
+  userId   String
+  tenantId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+}
+
+model Project {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  status      String      @default("active")
+  tenantId    String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  milestones  Milestone[]
+}
+
+model Milestone {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      String    @default("pending")
+  projectId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("todo")
+  priority    String    @default("medium")
+  milestoneId String
+  assigneeId  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  assignee    User?     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+}
