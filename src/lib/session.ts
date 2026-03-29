@@ -1,9 +1,15 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'flowforge-secret-key-change-in-production'
-)
+function getSecret(): Uint8Array {
+  const jwtSecret = process.env.JWT_SECRET
+  if (!jwtSecret && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable must be set in production')
+  }
+  return new TextEncoder().encode(
+    jwtSecret || 'flowforge-secret-key-change-in-production'
+  )
+}
 
 export type SessionPayload = {
   userId: string
@@ -15,7 +21,7 @@ export async function createSession(payload: SessionPayload): Promise<string> {
   const token = await new SignJWT(payload as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('7d')
-    .sign(secret)
+    .sign(getSecret())
   return token
 }
 
@@ -24,7 +30,7 @@ export async function getSession(): Promise<SessionPayload | null> {
   const token = cookieStore.get('session')?.value
   if (!token) return null
   try {
-    const { payload } = await jwtVerify(token, secret)
+    const { payload } = await jwtVerify(token, getSecret())
     return payload as unknown as SessionPayload
   } catch {
     return null
