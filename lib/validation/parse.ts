@@ -103,7 +103,7 @@ export async function parseFormDataAsync<T>(
       success: true,
       data: result.data,
     };
-  } catch (error) {
+  } catch (err) {
     return errorResult('Unexpected validation error');
   }
 }
