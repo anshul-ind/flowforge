@@ -1,0 +1,278 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum WorkspaceRole {
+  OWNER
+  MANAGER
+  MEMBER
+  VIEWER
+}
+
+enum ProjectStatus {
+  PLANNED
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  BLOCKED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  USER_MENTIONED
+  APPROVAL_REQUESTED
+  APPROVAL_APPROVED
+  APPROVAL_REJECTED
+  COMMENT_ADDED
+}
+
+enum AuditAction {
+  PROJECT_CREATED
+  PROJECT_ARCHIVED
+  TASK_CREATED
+  TASK_UPDATED
+  COMMENT_ADDED
+  APPROVAL_SUBMITTED
+  APPROVAL_APPROVED
+  APPROVAL_REJECTED
+  NOTIFICATION_READ
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  workspaceMembers WorkspaceMember[]
+  assignedTasks    Task[]            @relation("TaskAssignee")
+  comments         Comment[]
+  approvalRequests ApprovalRequest[] @relation("ApprovalRequester")
+  approvals        ApprovalRequest[] @relation("ApprovalApprover")
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  members          WorkspaceMember[]
+  projects         Project[]
+  tasks            Task[]
+  comments         Comment[]
+  approvalRequests ApprovalRequest[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+}
+
+model WorkspaceMember {
+  id       String        @id @default(cuid())
+  role     WorkspaceRole @default(MEMBER)
+  joinedAt DateTime      @default(now())
+
+  // Foreign Keys - TENANT ISOLATION
+  userId      String
+  workspaceId String
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(PLANNED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Foreign Keys - TENANT ISOLATION
+  workspaceId String
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@index([workspaceId])
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Foreign Keys - TENANT ISOLATION
+  workspaceId String
+  projectId   String
+  assigneeId  String?
+
+  // Relations
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee         User?             @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  comments         Comment[]
+  approvalRequests ApprovalRequest[]
+
+  // Self-relation for task dependencies
+  dependencies TaskDependency[] @relation("DependentTask")
+  dependents   TaskDependency[] @relation("BlockingTask")
+
+  @@index([workspaceId])
+  @@index([workspaceId, projectId])
+}
+
+model TaskDependency {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Foreign Keys
+  taskId          String
+  dependsOnTaskId String
+
+  // Relations
+  task          Task @relation("DependentTask", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnTask Task @relation("BlockingTask", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnTaskId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Foreign Keys - TENANT ISOLATION
+  workspaceId String
+  taskId      String
+  userId      String
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([workspaceId, taskId])
+}
+
+model ApprovalRequest {
+  id        String         @id @default(cuid())
+  title     String
+  status    ApprovalStatus @default(PENDING)
+  notes     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  // Foreign Keys - TENANT ISOLATION
+  workspaceId String
+  taskId      String
+  requesterId String
+  approverId  String?
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  requester User      @relation("ApprovalRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  approver  User?     @relation("ApprovalApprover", fields: [approverId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([workspaceId, taskId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // Foreign Keys - TENANT ISOLATION
+  workspaceId String
+  userId      String
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([workspaceId, userId])
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  action     AuditAction
+  entityType String
+  entityId   String
+  details    String?
+  createdAt  DateTime    @default(now())
+
+  // Foreign Keys - TENANT ISOLATION
+  workspaceId String
+  userId      String
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([workspaceId, entityType, entityId])
+}
