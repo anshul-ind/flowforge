@@ -22,8 +22,6 @@ const createProjectSchema = z.object({
   status: z.enum(['PLANNED', 'ACTIVE', 'ON_HOLD', 'COMPLETED', 'ARCHIVED']).default('PLANNED'),
 });
 
-type CreateProjectInput = z.infer<typeof createProjectSchema>;
-
 // ============================================
 // SERVER ACTIONS
 // ============================================

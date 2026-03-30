@@ -30,7 +30,7 @@ export function successResult<T>(data?: T, message?: string): ActionResult<T> {
 /**
  * Helper to create form-level error response
  */
-export function formErrorResult(formError: string): ActionResult {
+export function formErrorResult<T = void>(formError: string): ActionResult<T> {
   return {
     success: false,
     formError,
@@ -40,10 +40,10 @@ export function formErrorResult(formError: string): ActionResult {
 /**
  * Helper to create field-level validation error response
  */
-export function fieldErrorsResult(
+export function fieldErrorsResult<T = void>(
   fieldErrors: Record<string, string[]>,
   message?: string
-): ActionResult {
+): ActionResult<T> {
   return {
     success: false,
     fieldErrors,
@@ -54,7 +54,7 @@ export function fieldErrorsResult(
 /**
  * Helper to create generic error response
  */
-export function errorResult(message: string): ActionResult {
+export function errorResult<T = void>(message: string): ActionResult<T> {
   return {
     success: false,
     message,
