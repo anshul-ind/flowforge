@@ -25,6 +25,78 @@ FlowForge is a multi-tenant project management SaaS built with Next.js 15, Prism
 
 ---
 
+## Authentication & Authorization (Phase 3)
+
+### **Auth.js Foundation**
+- **Library:** Auth.js v4 (NextAuth.js)
+- **Strategy:** JWT sessions (stateless)
+- **Provider:** Credentials (email/password)
+- **Middleware:** Route protection at edge
+
+### **Session Helpers (`lib/auth`)**
+```typescript
+// Optional auth check
+const session = await getSession();
+if (!session) return <LoginPrompt />;
+
+// Enforced auth check (auto-redirects)
+const user = await requireUser();
+// User guaranteed to be authenticated here
+```
+
+### **Tenant Resolution (`lib/tenant`)**
+```typescript
+// Check workspace membership at runtime
+const tenant = await resolveTenantContext(workspaceId);
+if (!tenant) return <AccessDenied />;
+
+// tenant.userId, tenant.workspaceId, tenant.role
+```
+
+### **Middleware Protection**
+- Runs BEFORE any route renders
+- Protects `/workspace/*` routes
+- Redirects unauthenticated users to `/sign-in`
+- Preserves intended destination in callback URL
+
+### **Protected Route Behavior**
+1. **Unauthenticated** → Middleware redirects to `/sign-in` (401)
+2. **Authenticated, not a member** → `resolveTenantContext()` returns null (403)
+3. **Authenticated, member, low role** → Role check in action/page (403)
+
+### **TenantContext Object**
+```typescript
+type TenantContext = {
+  userId: string;        // Who is making the request
+  workspaceId: string;   // Which workspace they're accessing
+  role: WorkspaceRole;   // Their role in this workspace
+  requestId?: string;    // Optional tracing ID
+};
+```
+
+**Why a single context object?**
+- Type safety (can't forget userId, workspaceId, or role)
+- Consistency (same structure everywhere)
+- Extensibility (easy to add permissions, metadata)
+- Clarity (these values logically belong together)
+
+### **Service Layer (Future)**
+Services will receive `TenantContext` ensuring all operations are workspace-scoped:
+```typescript
+// Future pattern
+export class ProjectService {
+  constructor(private tenant: TenantContext) {}
+  
+  async createProject(data: CreateProjectInput) {
+    return db.project.create({
+      data: { ...data, workspaceId: this.tenant.workspaceId }
+    });
+  }
+}
+```
+
+---
+
 ## Database Schema
 
 ### Core Entities
@@ -153,6 +225,209 @@ export async function createProject(formData: FormData) {
   // 4. Return structured result
   return successResult(project, 'Project created successfully');
 }
+```
+
+---
+
+## Phase-5: Shared Patterns
+
+**See [phase-5-architecture.md](./phase-5-architecture.md) for comprehensive patterns.**
+
+Phase-5 defines the standard structure for all modules:
+
+```
+modules/[domain]/
+├── schemas.ts       # Zod validation (single source of truth)
+├── policies.ts      # Authorization rules per role
+├── repository.ts    # Database access (workspace-scoped)
+├── service.ts       # Business logic + authorization
+├── types.ts         # TypeScript interfaces
+└── [action].ts      # Server actions using service layer
+```
+
+**Standard Request Flow (Mutations):**
+```
+Page → Action → parseFormData() → resolveTenantContext() 
+  → Service → Repository → Database
+```
+
+**Key Rules:**
+- ✅ Validate input with Zod in `parseFormData()`
+- ✅ Resolve tenant in action/route handler
+- ✅ Create service with `TenantContext`
+- ✅ Check authorization in service
+- ✅ Use repository for data access (workspace-scoped)
+- ❌ Never call db directly from action
+- ❌ Never skip authorization checks
+- ❌ Never scope by `userId` alone (must include `workspaceId`)
+
+---
+
+## Phase-6: Read-Only Workspace & Project Shell
+
+Phase-6 implements the foundational navigation and read-only display for workspaces and projects. No mutations are included.
+
+### Read Data Flow Architecture
+
+```
+Server Component (Page/Layout)
+  ↓ requireUser() [enforce authentication]
+  ↓ resolveTenantContext(workspaceId) [enforce membership]
+  ↓ Service.method(tenant) [fetch with authorization]
+  ↓ Repository.method() [database query, workspace-scoped]
+  ↓ Presentational Component [receive typed props, display only]
+```
+
+### Layout Organization
+
+**Workspace layout hierarchy:**
+```
+app/(dashboard)/layout.tsx          [requireUser - enforce auth]
+  └── app/workspace/[workspaceId]/layout.tsx  [resolveTenantContext - enforce membership]
+        ├── app/workspace/[workspaceId]/page.tsx                [workspace overview]
+        ├── app/workspace/[workspaceId]/projects/page.tsx       [project list]
+        └── app/workspace/[workspaceId]/project/[projectId]/layout.tsx  [project detail]
+```
+
+**Key Pattern:**
+- Tenant context resolved in **layout** (not page)
+- All child pages assume tenant is valid
+- `error.tsx` catches `ForbiddenError` from layout
+- `loading.tsx` shows skeleton during data fetch
+
+### Workspace Page Flow
+
+```typescript
+// app/workspace/[workspaceId]/layout.tsx
+export default async function WorkspaceLayout({ params, children }) {
+  const user = await requireUser();  // 401 if unauthenticated
+  const tenant = await resolveTenantContext(params.workspaceId);
+  
+  if (!tenant) {
+    throw new ForbiddenError('Access denied');  // Caught by error.tsx → 403
+  }
+  
+  return <Sidebar /> <main>{children}</main>;
+}
+
+// app/workspace/[workspaceId]/page.tsx
+export default async function WorkspacePage({ params }) {
+  const tenant = await resolveTenantContext(params.workspaceId);
+  if (!tenant) throw new ForbiddenError('...');
+  
+  const service = new WorkspaceService(tenant);
+  const workspace = await service.getWorkspace();  // throws NotFoundError if null
+  const members = await service.getMembers();      // throws ForbiddenError if !canRead
+  
+  // Data guaranteed valid here
+  return <WorkspaceHeader workspace={workspace} />;
+}
+```
+
+### Service Authorization Pattern
+
+```typescript
+export class WorkspaceService {
+  async getMembers() {
+    // 1. Check policy first (authorization)
+    if (!WorkspacePolicy.canRead(this.tenant)) {
+      throw new ForbiddenError('Cannot read workspace members');
+    }
+    
+    // 2. Only then access data
+    return this.repo.getMembers();
+  }
+}
+```
+
+### Component Props Pattern
+
+All components are **fully presentational**:
+- Accept only typed props
+- NO data fetching inside
+- NO `fetch()` calls
+- NO Prisma calls
+- NO `useEffect` data loading
+
+```typescript
+// ❌ Bad: component fetches data
+function UserList() {
+  const [users, setUsers] = useState([]);
+  useEffect(() => {
+    fetch('/api/users').then(setUsers);
+  }, []);
+  return <div>{users.map(...)}</div>;
+}
+
+// ✅ Good: props only
+function UserList({ users }: { users: User[] }) {
+  return <div>{users.map(...)}</div>;
+}
+
+// Data fetched in server component
+const users = await service.getUsers();
+return <UserList users={users} />;
+```
+
+### Error Boundary Pattern
+
+```typescript
+// error.tsx - " use client" required
+export default function Error({ error, reset }) {
+  const title = error.name === 'ForbiddenError' ? '403' : 'Error';
+  return <ErrorMessage title={title} message={error.message} onReset={reset} />;
+}
+```
+
+### Loading Pattern
+
+```typescript
+// loading.tsx
+export default function Loading() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="h-32" />
+    </div>
+  );
+}
+```
+
+**Why not Suspense boundaries in Page?**
+- `loading.tsx` is simpler and more declarative
+- Works with Next.js route segments naturally
+- Cleaner for complex layouts
+
+### Query Optimization
+
+All repository queries include necessary relations:
+
+```typescript
+// ❌ N+1 queries
+const members = await db.workspaceMember.findMany({ where: { workspaceId } });
+const usersWithDetails = members.map(m => fetch(`/api/users/${m.userId}`)); // Multiple requests!
+
+// ✅ Optimized with include/select
+const members = await db.workspaceMember.findMany({
+  where: { workspaceId },
+  include: {
+    user: { select: { id: true, email: true, name: true } }  // 1 query, all data
+  }
+});
+```
+
+### Tenant Context Propagation
+
+```typescript
+// Only resolved once per request, passed down
+const tenant = await resolveTenantContext(workspaceId);
+
+// Service layer
+new WorkspaceService(tenant).getWorkspace();  // tenant.workspaceId scopes query
+new ProjectService(tenant).listProjects();    // same tenant scope
+
+// Repository layer
+new ProjectRepository(tenant).listProjects(); // uses tenant.workspaceId in where clause
 ```
 
 ---

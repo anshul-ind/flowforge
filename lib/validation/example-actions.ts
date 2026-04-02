@@ -8,7 +8,7 @@
 'use server';
 
 import { z } from 'zod';
-import { db } from '@/lib/db';
+import { prisma } from '@/lib/db';
 import { parseFormData } from '@/lib/validation/parse';
 import { successResult, errorResult, ActionResult } from '@/types/action-result';
 
@@ -58,8 +58,16 @@ export async function createProject(
       return result; // Returns field-level errors
     }
 
+    // Extra guard: ensure data and name exist (required for Prisma create)
+    if (!result.data || !result.data.name) {
+      return errorResult('Project name is required');
+    }
+
+    // At this point TypeScript knows result.data && result.data.name exist
+    const safeData = result.data;
+
     // 2. Verify workspace exists (authorization check would go here)
-    const workspace = await db.workspace.findUnique({
+    const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
     });
 
@@ -68,9 +76,10 @@ export async function createProject(
     }
 
     // 3. Create project with tenant isolation
-    const project = await db.project.create({
+    const project = await prisma.project.create({
       data: {
-        ...result.data,
+        ...safeData,
+        name: safeData.name, // Explicitly use the narrowed name
         workspaceId, // Always scoped to workspace!
       },
       select: {
@@ -112,13 +121,21 @@ export async function updateProject(
 
     if (!result.success) return result;
 
+    // Extra guard: ensure update data is defined
+    if (!result.data) {
+      return errorResult('No data provided for update');
+    }
+
+    // Assign to const to narrow the type
+    const updateData = result.data;
+
     // 2. Update with tenant check
-    const project = await db.project.update({
+    const project = await prisma.project.update({
       where: {
         id: projectId,
         workspaceId, // Ensures tenant isolation!
       },
-      data: result.data,
+      data: updateData,
       select: {
         id: true,
         name: true,
@@ -142,7 +159,7 @@ export async function deleteProject(
 ): Promise<ActionResult> {
   try {
     // Delete with tenant check
-    await db.project.delete({
+    await prisma.project.delete({
       where: {
         id: projectId,
         workspaceId, // Only delete if belongs to workspace!
