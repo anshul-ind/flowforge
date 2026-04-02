@@ -3,11 +3,11 @@
 
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
-generator client {
-  provider = "prisma-client-js"
-  output   = "../lib/generated/prisma"
-}
-
+   generator client {
+      provider        = "prisma-client-js"
+      output          = "../lib/generated/prisma"
+      engineType      = "library"
+    }
 datasource db {
   provider = "postgresql"
 }
@@ -88,13 +88,15 @@ model User {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  workspaceMembers WorkspaceMember[]
-  assignedTasks    Task[]            @relation("TaskAssignee")
-  comments         Comment[]
-  approvalRequests ApprovalRequest[] @relation("ApprovalRequester")
-  approvals        ApprovalRequest[] @relation("ApprovalApprover")
-  notifications    Notification[]
-  auditLogs        AuditLog[]
+  workspaceMembers       WorkspaceMember[]
+  assignedTasks          Task[]               @relation("TaskAssignee")
+  comments               Comment[]
+  approvalRequests       ApprovalRequest[]    @relation("ApprovalRequester")
+  approvals              ApprovalRequest[]    @relation("ApprovalApprover")
+  notifications          Notification[]
+  auditLogs              AuditLog[]
+  commentReactions       CommentReaction[]    @relation("CommentReactions")
+  mentionsMentioning     Mention[]            @relation("CommentMentions")
 }
 
 model Workspace {
@@ -136,6 +138,7 @@ model Project {
   name        String
   description String?
   status      ProjectStatus @default(PLANNED)
+  dueDate     DateTime?      // SLA/due date for project
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -154,6 +157,7 @@ model Task {
   title       String
   description String?
   status      TaskStatus   @default(TODO)
+  statusChangedAt DateTime   @default(now())
   priority    TaskPriority @default(MEDIUM)
   dueDate     DateTime?
   createdAt   DateTime     @default(now())
@@ -177,6 +181,10 @@ model Task {
 
   @@index([workspaceId])
   @@index([workspaceId, projectId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, assigneeId])
+  @@index([workspaceId, dueDate])
+  @@index([projectId])
 }
 
 model TaskDependency {
@@ -199,6 +207,8 @@ model Comment {
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  editedAt  DateTime? // Track when comment was edited
+  deletedAt DateTime? // Soft delete
 
   // Foreign Keys - TENANT ISOLATION
   workspaceId String
@@ -209,9 +219,46 @@ model Comment {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reactions CommentReaction[]
+  mentions  Mention[]
 
   @@index([workspaceId])
   @@index([workspaceId, taskId])
+  @@index([taskId])
+}
+
+model CommentReaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  createdAt DateTime @default(now())
+
+  // Foreign Keys
+  commentId String
+  userId    String
+
+  // Relations
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation("CommentReactions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId, emoji])
+  @@index([commentId])
+}
+
+model Mention {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Foreign Keys
+  commentId       String
+  mentionedUserId String
+
+  // Relations
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation("CommentMentions", fields: [mentionedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, mentionedUserId])
+  @@index([commentId])
+  @@index([mentionedUserId])
 }
 
 model ApprovalRequest {
@@ -236,6 +283,7 @@ model ApprovalRequest {
 
   @@index([workspaceId])
   @@index([workspaceId, taskId])
+  @@index([workspaceId, status])
 }
 
 model Notification {
@@ -255,6 +303,7 @@ model Notification {
 
   @@index([workspaceId])
   @@index([workspaceId, userId])
+  @@index([userId, isRead])
 }
 
 model AuditLog {
@@ -275,4 +324,5 @@ model AuditLog {
 
   @@index([workspaceId])
   @@index([workspaceId, entityType, entityId])
+  @@index([workspaceId, createdAt])
 }
