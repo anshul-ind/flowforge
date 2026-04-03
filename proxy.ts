@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export default auth((req) => {
+  // Server Actions POST with a `next-action` header. Running auth redirects on those
+  // requests breaks the flight/action protocol and the client shows "Failed to fetch".
+  if (req.headers.has("next-action")) {
+    return NextResponse.next();
+  }
+
   const isAuthenticated = !!req.auth;
   const isProtectedRoute = req.nextUrl.pathname.startsWith("/workspace");
   const { pathname } = req.nextUrl;

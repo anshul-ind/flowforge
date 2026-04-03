@@ -20,12 +20,20 @@ export async function signUp(
   formData: FormData
 ): Promise<ActionResult<{ email: string; id: string }>> {
   try {
+    const nameRaw = formData.get('name');
+    const name =
+      typeof nameRaw === 'string' && nameRaw.trim().length > 0
+        ? nameRaw.trim()
+        : undefined;
+
     // Convert FormData to object
     const data = {
-      email: formData.get('email') as string,
-      password: formData.get('password') as string,
-      confirmPassword: formData.get('confirmPassword') as string,
-      name: formData.get('name') as string | undefined,
+      email: String(formData.get('email') ?? '')
+        .trim()
+        .toLowerCase(),
+      password: String(formData.get('password') ?? ''),
+      confirmPassword: String(formData.get('confirmPassword') ?? ''),
+      name,
       userType: (formData.get('userType') as string) || 'personal',
     };
 
