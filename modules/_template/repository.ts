@@ -28,12 +28,12 @@ import type { ProjectStatus } from '@/lib/generated/prisma';
  */
 
 interface CreateProjectData {
-  name: string;
+  title: string;
   description?: string;
 }
 
 interface UpdateProjectData {
-  name?: string;
+  title?: string;
   description?: string;
 }
 
@@ -49,6 +49,7 @@ export class ProjectRepository {
       data: {
         ...data,
         workspaceId: this.tenant.workspaceId, // Explicitly set tenant scope
+        createdById: this.tenant.userId,
       },
     });
   }

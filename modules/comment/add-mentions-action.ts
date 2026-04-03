@@ -72,7 +72,7 @@ export async function addMentionsAction({
       }
 
       // Check if mention already exists
-      const existingMention = await prisma.mention.findUnique({
+      const existingMention = await prisma.commentMention.findUnique({
         where: {
           commentId_mentionedUserId: {
             commentId,
@@ -86,7 +86,7 @@ export async function addMentionsAction({
       }
 
       // Create mention
-      const mention = await prisma.mention.create({
+      const mention = await prisma.commentMention.create({
         data: {
           commentId,
           mentionedUserId: user.id,

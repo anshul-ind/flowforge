@@ -44,17 +44,22 @@ export class ProjectRepository {
    * Create a new project in the workspace
    */
   async createProject(data: {
-    name: string;
+    title: string;
     description?: string;
     status?: ProjectStatus;
     dueDate?: Date;
   }): Promise<Project> {
+    const { title, description, status, dueDate } = data
     return await prisma.project.create({
       data: {
-        ...data,
+        title,
+        description,
+        status,
+        dueDate,
         workspaceId: this.tenant.workspaceId,
+        createdById: this.tenant.userId,
       },
-    });
+    })
   }
 
   /**
@@ -64,7 +69,7 @@ export class ProjectRepository {
   async updateProject(
     projectId: string,
     data: {
-      name?: string;
+      title?: string;
       description?: string;
       status?: ProjectStatus;
       dueDate?: Date | null;
@@ -73,10 +78,16 @@ export class ProjectRepository {
     const project = await this.getProject(projectId);
     if (!project) return null;
 
+    const { title, description, status, dueDate } = data
     return await prisma.project.update({
       where: { id: projectId },
-      data,
-    });
+      data: {
+        ...(title ? { title } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(status ? { status } : {}),
+        ...(dueDate !== undefined ? { dueDate } : {}),
+      },
+    })
   }
 
   /**

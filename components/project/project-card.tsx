@@ -31,11 +31,11 @@ export function ProjectCard({
   const statusStyle = STATUS_STYLES[project.status] || STATUS_STYLES.PLANNED;
 
   return (
-    <Link href={`/workspace/${workspaceId}/project/${project.id}`}>
+    <Link href={`/workspace/${workspaceId}/projects/${project.id}`}>
       <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
-          <h3 className="text-lg font-semibold text-gray-900 flex-1">{project.name}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 flex-1">{project.title}</h3>
         </div>
 
         {/* Description */}

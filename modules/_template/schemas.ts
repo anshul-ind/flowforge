@@ -18,10 +18,10 @@ import { z } from 'zod';
 
 // Create operation: client submits these fields
 export const createProjectSchema = z.object({
-  name: z
-    .string('Project name is required')
-    .min(3, 'Project name must be at least 3 characters')
-    .max(100, 'Project name must be less than 100 characters'),
+  title: z
+    .string('Project title is required')
+    .min(3, 'Project title must be at least 3 characters')
+    .max(100, 'Project title must be less than 100 characters'),
   description: z
     .string()
     .max(500, 'Description must be less than 500 characters')
@@ -39,7 +39,7 @@ export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 // Query filters: for repository search methods
 export const projectFilterSchema = z.object({
   status: z.enum(['ACTIVE', 'ARCHIVED']).optional(),
-  sortBy: z.enum(['name', 'createdAt']).default('createdAt'),
+  sortBy: z.enum(['title', 'createdAt']).default('createdAt'),
 });
 
 export type ProjectFilterInput = z.infer<typeof projectFilterSchema>;

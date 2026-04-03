@@ -1,7 +1,9 @@
+import Link from 'next/link';
 import { requireUser } from '@/lib/auth/require-user';
 import { resolveTenantContext } from '@/lib/tenant/resolve-tenant';
 import { WorkspaceService } from '@/modules/workspace/service';
 import { ForbiddenError } from '@/lib/errors';
+import { canInvite } from '@/lib/permissions';
 import { MemberList } from '@/components/workspace/member-list';
 
 /**
@@ -31,11 +33,21 @@ export default async function MembersPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Members</h1>
-        <p className="text-gray-500 mt-1">
-          {members.length} member{members.length !== 1 ? 's' : ''}
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Members</h1>
+          <p className="text-gray-500 mt-1">
+            {members.length} member{members.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        {canInvite(tenant.role) && (
+          <Link
+            href={`/workspace/${workspaceId}/members/invite`}
+            className="inline-flex items-center justify-center rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+          >
+            Invite people
+          </Link>
+        )}
       </div>
 
       {/* Members list */}

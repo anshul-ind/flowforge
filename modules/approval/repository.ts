@@ -1,22 +1,21 @@
-import { TenantContext } from '@/lib/tenant/tenant-context';
-import { prisma } from '@/lib/db';
-
-import { ApprovalRequest, ApprovalStatus } from '@/lib/generated/prisma';
+import { TenantContext } from '@/lib/tenant/tenant-context'
+import { prisma } from '@/lib/db'
+import { ApprovalRequest, ApprovalStatus, MemberStatus } from '@/lib/generated/prisma'
 
 /**
- * Approval Repository
- * 
- * Data access layer for approval request operations.
- * Enforces workspace boundaries.
+ * Approval Repository — data access aligned with Prisma schema (submittedById, reviewerId).
  */
 export class ApprovalRepository {
   constructor(private tenant: TenantContext) {}
 
-  /**
-   * Get approval request by ID
-   * Enforces workspace scoping
-   */
-  async getApproval(approvalId: string): Promise<ApprovalRequest | null> {
+  async getApproval(approvalId: string): Promise<
+    | (ApprovalRequest & {
+        task: { id: string; title: string }
+        submitter: { id: string; name: string | null; email: string | null }
+        reviewer: { id: string; name: string | null; email: string | null } | null
+      })
+    | null
+  > {
     return await prisma.approvalRequest.findFirst({
       where: {
         id: approvalId,
@@ -24,164 +23,148 @@ export class ApprovalRepository {
       },
       include: {
         task: { select: { id: true, title: true } },
-        requester: { select: { id: true, name: true, email: true } },
-        approver: { select: { id: true, name: true, email: true } },
+        submitter: { select: { id: true, name: true, email: true } },
+        reviewer: { select: { id: true, name: true, email: true } },
       },
-    });
+    })
   }
 
-  /**
-   * Get all approval requests in workspace
-   * Can filter by status and assignee
-   */
   async listApprovals(filters?: {
-    status?: ApprovalStatus;
-    approverId?: string;
-    requesterId?: string;
+    status?: ApprovalStatus
+    reviewerId?: string
+    submittedById?: string
   }): Promise<ApprovalRequest[]> {
     return await prisma.approvalRequest.findMany({
       where: {
         workspaceId: this.tenant.workspaceId,
         ...(filters?.status && { status: filters.status }),
-        ...(filters?.approverId && { approverId: filters.approverId }),
-        ...(filters?.requesterId && { requesterId: filters.requesterId }),
+        ...(filters?.reviewerId && { reviewerId: filters.reviewerId }),
+        ...(filters?.submittedById && { submittedById: filters.submittedById }),
       },
       include: {
         task: { select: { id: true, title: true } },
-        requester: { select: { id: true, name: true } },
-        approver: { select: { id: true, name: true } },
+        submitter: { select: { id: true, name: true, email: true } },
+        reviewer: { select: { id: true, name: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
-    });
+    })
   }
 
-  /**
-   * Get approvals pending for a specific user
-   */
   async listPendingForUser(userId: string): Promise<ApprovalRequest[]> {
     return await prisma.approvalRequest.findMany({
       where: {
         workspaceId: this.tenant.workspaceId,
-        approverId: userId,
-        status: 'PENDING',
+        reviewerId: userId,
+        status: ApprovalStatus.PENDING,
       },
       include: {
         task: { select: { id: true, title: true } },
-        requester: { select: { id: true, name: true } },
+        submitter: { select: { id: true, name: true, email: true } },
       },
       orderBy: { createdAt: 'asc' },
-    });
+    })
   }
 
-  /**
-   * Get approvals requested by a user
-   */
   async listRequestedByUser(userId: string): Promise<ApprovalRequest[]> {
     return await prisma.approvalRequest.findMany({
       where: {
         workspaceId: this.tenant.workspaceId,
-        requesterId: userId,
+        submittedById: userId,
       },
       include: {
         task: { select: { id: true, title: true } },
-        approver: { select: { id: true, name: true } },
+        reviewer: { select: { id: true, name: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
-    });
+    })
   }
 
-  /**
-   * Create approval request
-   */
   async createApproval(data: {
-    taskId: string;
-    approverId: string;
-    title: string;
-    notes?: string;
+    taskId: string
+    approverId: string
+    notes?: string
   }): Promise<ApprovalRequest | null> {
-    // Verify task belongs to workspace
     const task = await prisma.task.findFirst({
       where: {
         id: data.taskId,
         workspaceId: this.tenant.workspaceId,
       },
-    });
-    if (!task) return null;
+    })
+    if (!task) return null
 
-    // Verify approver is a workspace member
-    const isMember = await prisma.workspaceMember.findUnique({
+    const reviewer = await prisma.workspaceMember.findUnique({
       where: {
         userId_workspaceId: {
           userId: data.approverId,
           workspaceId: this.tenant.workspaceId,
         },
       },
-    });
-    if (!isMember) return null;
+    })
+    if (!reviewer || reviewer.status !== MemberStatus.ACTIVE) return null
 
     return await prisma.approvalRequest.create({
       data: {
-        ...data,
         workspaceId: this.tenant.workspaceId,
-        requesterId: this.tenant.userId,
+        taskId: data.taskId,
+        submittedById: this.tenant.userId,
+        reviewerId: data.approverId,
+        submitNote: data.notes?.trim() || null,
       },
       include: {
         task: { select: { id: true, title: true } },
-        requester: { select: { id: true, name: true } },
-        approver: { select: { id: true, name: true } },
+        submitter: { select: { id: true, name: true, email: true } },
+        reviewer: { select: { id: true, name: true, email: true } },
       },
-    });
+    })
   }
 
-  /**
-   * Update approval request status
-   * Enforces workspace scoping
-   */
   async updateApprovalStatus(
     approvalId: string,
-    status: ApprovalStatus
+    status: ApprovalStatus,
+    options?: { rejectionReason?: string | null }
   ): Promise<ApprovalRequest | null> {
-    const approval = await this.getApproval(approvalId);
-    if (!approval) return null;
+    const approval = await this.getApproval(approvalId)
+    if (!approval) return null
 
     return await prisma.approvalRequest.update({
-      where: { id: approvalId },
-      data: { status },
+      where: { id: approvalId, workspaceId: this.tenant.workspaceId },
+      data: {
+        status,
+        ...(status === ApprovalStatus.REJECTED && options?.rejectionReason !== undefined
+          ? { rejectionReason: options.rejectionReason }
+          : {}),
+        ...(status === ApprovalStatus.APPROVED || status === ApprovalStatus.REJECTED
+          ? { actedAt: new Date() }
+          : {}),
+      },
       include: {
         task: { select: { id: true, title: true } },
-        requester: { select: { id: true, name: true } },
-        approver: { select: { id: true, name: true } },
+        submitter: { select: { id: true, name: true, email: true } },
+        reviewer: { select: { id: true, name: true, email: true } },
       },
-    });
+    })
   }
 
-  /**
-   * Approve a request
-   */
   async approveRequest(approvalId: string): Promise<ApprovalRequest | null> {
-    const approval = await this.getApproval(approvalId);
-    if (!approval || approval.status !== 'PENDING') return null;
+    const approval = await this.getApproval(approvalId)
+    if (!approval || approval.status !== ApprovalStatus.PENDING) return null
 
-    return await this.updateApprovalStatus(approvalId, 'APPROVED');
+    return await this.updateApprovalStatus(approvalId, ApprovalStatus.APPROVED)
   }
 
-  /**
-   * Reject a request
-   */
-  async rejectRequest(approvalId: string): Promise<ApprovalRequest | null> {
-    const approval = await this.getApproval(approvalId);
-    if (!approval || approval.status !== 'PENDING') return null;
+  async rejectRequest(approvalId: string, rejectionReason: string): Promise<ApprovalRequest | null> {
+    const approval = await this.getApproval(approvalId)
+    if (!approval || approval.status !== ApprovalStatus.PENDING) return null
 
-    return await this.updateApprovalStatus(approvalId, 'REJECTED');
+    return await this.updateApprovalStatus(approvalId, ApprovalStatus.REJECTED, {
+      rejectionReason: rejectionReason.trim(),
+    })
   }
 
-  /**
-   * Cancel a pending approval request
-   */
   async cancelRequest(approvalId: string): Promise<ApprovalRequest | null> {
-    const approval = await this.getApproval(approvalId);
-    if (!approval || approval.status !== 'PENDING') return null;
+    const approval = await this.getApproval(approvalId)
+    if (!approval || approval.status !== ApprovalStatus.PENDING) return null
 
-    return await this.updateApprovalStatus(approvalId, 'CANCELLED');
+    return await this.updateApprovalStatus(approvalId, ApprovalStatus.CANCELLED)
   }
 }

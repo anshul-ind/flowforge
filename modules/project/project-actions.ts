@@ -26,7 +26,7 @@ import { revalidatePath } from 'next/cache';
 export async function createProjectAction(
   workspaceId: string,
   formData: FormData
-): Promise<ActionResult<{ id: string; name: string }>> {
+): Promise<ActionResult<{ id: string; title: string }>> {
   try {
     console.log('[Project Action] Starting project creation for workspace:', workspaceId);
 
@@ -47,11 +47,12 @@ export async function createProjectAction(
 
     // 3. Parse and validate input
     console.log('[Project Action] Step 3: Parse and validate input');
+    const titleRaw = formData.get('title') ?? formData.get('name')
     const formDataObj = {
-      name: formData.get('name'),
+      title: titleRaw,
       description: formData.get('description'),
       dueDate: formData.get('dueDate'),
-    };
+    }
     console.log('[Project Action] Form data:', JSON.stringify(formDataObj));
 
     const parseResult = parseFormData(createProjectSchema, formDataObj);
@@ -95,11 +96,11 @@ export async function createProjectAction(
 
     console.log('[Project Action] Step 5: Create project in database');
     const project = await service.createProject({
-      name: validData.name,
+      title: validData.title,
       description: validData.description || undefined,
       dueDate: parsedDueDate,
     });
-    console.log('[Project Action] Project created:', project.id, project.name);
+    console.log('[Project Action] Project created:', project.id, project.title);
 
     // 5. Revalidate cache
     console.log('[Project Action] Step 6: Revalidate cache');
@@ -108,7 +109,7 @@ export async function createProjectAction(
     // 6. Return success
     console.log('[Project Action] SUCCESS: Project creation completed');
     return successResult(
-      { id: project.id, name: project.name },
+      { id: project.id, title: project.title },
       'Project created successfully!'
     );
   } catch (error) {

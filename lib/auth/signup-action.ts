@@ -26,6 +26,7 @@ export async function signUp(
       password: formData.get('password') as string,
       confirmPassword: formData.get('confirmPassword') as string,
       name: formData.get('name') as string | undefined,
+      userType: (formData.get('userType') as string) || 'personal',
     };
 
     // Validate with Zod schema
@@ -46,8 +47,9 @@ export async function signUp(
       return fieldErrorsResult(fieldErrors, 'Validation failed');
     }
 
-    // Call auth service to create user
-    const result = await AuthService.signup(validationResult.data);
+    // Call auth service to create user with userType
+    const userType = (data.userType === 'team' ? 'team' : 'personal') as 'personal' | 'team';
+    const result = await AuthService.signup(validationResult.data, userType);
     return result;
   } catch (error) {
     console.error('Sign up action error:', error);

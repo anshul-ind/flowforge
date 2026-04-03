@@ -27,6 +27,7 @@ export function NotificationItem({
   id,
   message,
   type,
+  workspaceId,
   isRead,
   createdAt,
   user,
@@ -37,7 +38,7 @@ export function NotificationItem({
   async function handleClick() {
     if (!optimisticRead) {
       setOptimisticRead(true);
-      await markNotificationReadAction(id);
+      await markNotificationReadAction(id, workspaceId);
     }
   }
 

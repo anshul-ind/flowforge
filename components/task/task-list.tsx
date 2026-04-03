@@ -77,7 +77,7 @@ export function TaskList({  tasks,
               >
                 <td className="px-4 py-3">
                   <Link
-                    href={`/workspace/${workspaceId}/project/${projectId}/task/${task.id}`}
+                    href={`/workspace/${workspaceId}/projects/${projectId}/tasks/${task.id}`}
                     className="text-blue-600 hover:underline font-medium"
                     onClick={(e) => e.stopPropagation()}
                   >

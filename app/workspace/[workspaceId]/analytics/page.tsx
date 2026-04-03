@@ -1,148 +1,172 @@
-import { notFound, redirect } from 'next/navigation';
-import { auth } from '@/auth';
-import { resolveTenantContext } from '@/lib/tenant/resolve-tenant';
-import { AnalyticsService } from '@/modules/analytics/service';
-import { WorkloadChart } from '@/components/analytics/workload-chart';
-import { TasksByStatusChart } from '@/components/analytics/tasks-by-status-chart';
-import { OverdueTasksList } from '@/components/analytics/overdue-tasks-list';
-import { CycleTimeChart } from '@/components/analytics/cycle-time-chart';
-import { ApprovalTurnaroundChart } from '@/components/analytics/approval-turnaround-chart';
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { requireUser } from '@/lib/auth/require-user'
+import { resolveTenantContext } from '@/lib/tenant/resolve-tenant'
+import { canAccessWorkspaceAnalytics } from '@/lib/permissions'
+import { getWorkspaceAnalyticsSnapshot } from '@/lib/queries/workspace-analytics'
+import { BarChart, TrendingUp, Calendar, Users, AlertCircle } from 'lucide-react'
+import { TasksByStatusChart } from '@/components/analytics/tasks-by-status-chart'
+import { WorkloadChart } from '@/components/analytics/workload-chart'
 
 interface AnalyticsPageProps {
-  params: {
-    workspaceId: string;
-  };
+  params: Promise<{ workspaceId: string }>
 }
 
-/**
- * Analytics Dashboard Page
- * Server-side aggregation of all analytics data
- */
 export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
-  const session = await auth();
-  if (!session?.user) {
-    redirect('/auth/login');
-  }
+  const { workspaceId } = await params
+  const user = await requireUser()
+  const tenant = await resolveTenantContext(workspaceId, user.id)
 
-  const { workspaceId } = params;
-
-  // Validate workspace access and get tenant context
-  const tenant = await resolveTenantContext(workspaceId, session.user.id);
   if (!tenant) {
-    notFound();
+    notFound()
   }
 
-  // Get all analytics data in parallel
-  const analyticsService = new AnalyticsService(tenant);
-  const dashboardData = await analyticsService.getDashboardData();
-
-  if (!dashboardData) {
+  if (!canAccessWorkspaceAnalytics(tenant.role)) {
     return (
-      <div className="p-6 text-center">
-        <p className="text-gray-500">Unable to load analytics data</p>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="max-w-md rounded-lg border border-danger-300 bg-danger-50 p-8 text-center">
+          <AlertCircle size={48} className="mx-auto mb-4 text-danger" />
+          <h2 className="mb-2 text-lg font-semibold text-primary">Access Denied</h2>
+          <p className="text-secondary">Only workspace owners can access the analytics dashboard.</p>
+        </div>
       </div>
-    );
+    )
   }
 
-  const {
-    tasksByStatus,
-    overdueTasks,
-    cycleTime,
-    workload,
-    approvals,
-    metrics: overallMetrics
-  } = dashboardData;
+  const data = await getWorkspaceAnalyticsSnapshot(workspaceId)
+  const maxStatus = Math.max(...data.tasksByStatus.map((t) => t.count), 1)
+  const completionPct =
+    data.totals.tasks > 0 ? Math.round((data.totals.tasksDone / data.totals.tasks) * 100) : 0
 
   return (
-    <div className="space-y-8 p-6">
-      {/* Header */}
+    <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-        <p className="text-gray-600 mt-2">Performance metrics and team statistics</p>
+        <h1 className="text-3xl font-bold text-primary">Analytics</h1>
+        <p className="mt-2 text-secondary">Workspace execution and delivery (tenant-scoped)</p>
       </div>
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Tasks */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <p className="text-sm font-medium text-gray-600 mb-2">Total Tasks</p>
-          <p className="text-3xl font-bold text-gray-900">{overallMetrics.totalTasks}</p>
-          <p className="text-xs text-gray-500 mt-2">across all projects</p>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="mb-1 text-sm font-medium text-secondary">Total tasks</p>
+              <p className="text-3xl font-bold text-primary">{data.totals.tasks}</p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10">
+              <BarChart size={20} className="text-brand" />
+            </div>
+          </div>
         </div>
 
-        {/* Completed Tasks */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <p className="text-sm font-medium text-gray-600 mb-2">Completed</p>
-          <p className="text-3xl font-bold text-green-600">{overallMetrics.completedTasks}</p>
-          <p className="text-xs text-gray-500 mt-2">
-            {overallMetrics.totalTasks > 0
-              ? Math.round((overallMetrics.completedTasks / overallMetrics.totalTasks) * 100)
-              : 0}
-            % completion
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="mb-1 text-sm font-medium text-secondary">Completed</p>
+              <p className="text-3xl font-bold text-primary">{data.totals.tasksDone}</p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+              <TrendingUp size={20} className="text-success" />
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-tertiary">{completionPct}% of all tasks</p>
+        </div>
+
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="mb-1 text-sm font-medium text-secondary">Overdue</p>
+              <p className="text-3xl font-bold text-danger">{data.totals.overdueTasks}</p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-danger/10">
+              <AlertCircle size={20} className="text-danger" />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="mb-1 text-sm font-medium text-secondary">Avg. cycle (done)</p>
+              <p className="text-3xl font-bold text-primary">
+                {data.avgCycleTimeDaysDone != null
+                  ? `${data.avgCycleTimeDaysDone.toFixed(1)}d`
+                  : '—'}
+              </p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
+              <Calendar size={20} className="text-info" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <div className="mb-2 flex items-center gap-2">
+            <Users size={18} className="text-secondary" />
+            <p className="text-sm font-medium text-secondary">Active members</p>
+          </div>
+          <p className="text-2xl font-bold text-primary">{data.totals.membersActive}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <p className="mb-2 text-sm font-medium text-secondary">Open projects</p>
+          <p className="text-2xl font-bold text-primary">{data.totals.projectsActive}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <p className="mb-2 text-sm font-medium text-secondary">Archived projects</p>
+          <p className="text-2xl font-bold text-primary">{data.totals.projectsArchived}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <h2 className="mb-6 text-lg font-semibold text-primary">Tasks by status</h2>
+          <TasksByStatusChart rows={data.tasksByStatus} maxCount={maxStatus} />
+        </div>
+
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <h2 className="mb-6 text-lg font-semibold text-primary">Workload by assignee</h2>
+          <WorkloadChart rows={data.workloadByAssignee} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <h2 className="mb-4 text-lg font-semibold text-primary">Approvals</h2>
+          <ul className="space-y-2 text-sm text-secondary">
+            <li>Pending: <span className="font-semibold text-primary">{data.approvals.pending}</span></li>
+            <li>Approved: <span className="font-semibold text-primary">{data.approvals.approved}</span></li>
+            <li>Rejected: <span className="font-semibold text-primary">{data.approvals.rejected}</span></li>
+          </ul>
+          <p className="mt-3 text-xs text-tertiary">
+            Pending invites (open links): {data.totals.invitesOutstanding}
           </p>
         </div>
 
-        {/* Open Tasks */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <p className="text-sm font-medium text-gray-600 mb-2">Open Tasks</p>
-          <p className="text-3xl font-bold text-blue-600">{overallMetrics.openTasks}</p>
-          <p className="text-xs text-gray-500 mt-2">awaiting completion</p>
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <h2 className="mb-4 text-lg font-semibold text-primary">Overdue tasks</h2>
+          {data.overdueSamples.length === 0 ? (
+            <p className="text-center text-tertiary py-6">No overdue tasks.</p>
+          ) : (
+            <ul className="divide-y divide-border text-sm">
+              {data.overdueSamples.map((t) => (
+                <li key={t.id} className="py-3">
+                  <Link
+                    href={`/workspace/${workspaceId}/projects/${t.projectId}/tasks/${t.id}`}
+                    className="font-medium text-brand hover:underline"
+                  >
+                    {t.title}
+                  </Link>
+                  <p className="text-xs text-tertiary">
+                    {t.projectTitle}
+                    {t.assigneeName ? ` · ${t.assigneeName}` : ''}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-
-        {/* Overdue Count */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <p className="text-sm font-medium text-gray-600 mb-2">Overdue</p>
-          <p className={`text-3xl font-bold ${overallMetrics.overdueTasks > 0 ? 'text-red-600' : 'text-gray-600'}`}>
-            {overallMetrics.overdueTasks}
-          </p>
-          <p className="text-xs text-gray-500 mt-2">require attention</p>
-        </div>
-      </div>
-
-      {/* Tasks by Status */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Tasks by Status</h2>
-          <p className="text-sm text-gray-600">Distribution across all statuses</p>
-        </div>
-        <TasksByStatusChart data={tasksByStatus} />
-      </div>
-
-      {/* Workload Chart */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Team Workload</h2>
-          <p className="text-sm text-gray-600">Open tasks per assignee</p>
-        </div>
-        <WorkloadChart data={workload} workspaceId={workspaceId} />
-      </div>
-
-      {/* Cycle Time */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Cycle Time</h2>
-          <p className="text-sm text-gray-600">Average days to completion per project</p>
-        </div>
-        <CycleTimeChart data={cycleTime} />
-      </div>
-
-      {/* Approval Turnaround */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Approval Turnaround</h2>
-          <p className="text-sm text-gray-600">Reviewer metrics and response times</p>
-        </div>
-        <ApprovalTurnaroundChart data={approvals} />
-      </div>
-
-      {/* Overdue Tasks List */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Overdue Tasks</h2>
-          <p className="text-sm text-gray-600">Tasks past their due date</p>
-        </div>
-        <OverdueTasksList tasks={overdueTasks} workspaceId={workspaceId} />
       </div>
     </div>
-  );
+  )
 }

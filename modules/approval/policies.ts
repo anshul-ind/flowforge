@@ -26,18 +26,14 @@ export namespace ApprovalPolicy {
   }
 
   /**
-   * Can user approve a request?
-   * All roles (OWNER, MANAGER, MEMBER) can approve (VIEWER cannot)
-   * Additional check: User must be the assigned approver (checked in service)
+   * Can user approve a request? OWNER and MANAGER (see role-matrix).
+   * Service layer still requires assigned reviewer or elevated role.
    */
   export function canApprove(tenant: TenantContext): boolean {
     return canPerform(tenant.role, Resource.APPROVAL, Action.APPROVE);
   }
 
-  /**
-   * Can user reject an approval request?
-   * OWNER and MANAGER can reject
-   */
+  /** OWNER and MANAGER can reject (see role-matrix). */
   export function canReject(tenant: TenantContext): boolean {
     return canPerform(tenant.role, Resource.APPROVAL, Action.REJECT);
   }

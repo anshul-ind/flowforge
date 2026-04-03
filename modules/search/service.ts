@@ -22,25 +22,24 @@ export class SearchService {
 
     try {
       const [projects, tasks] = await Promise.all([
-        // Search projects by name or description (case-insensitive)
         prisma.project.findMany({
           where: {
             workspaceId: this.tenant.workspaceId,
             OR: [
-              { name: { contains: normalizedQuery, mode: 'insensitive' } },
+              { title: { contains: normalizedQuery, mode: 'insensitive' } },
               { description: { contains: normalizedQuery, mode: 'insensitive' } },
             ],
           },
           select: {
             id: true,
-            name: true,
+            title: true,
             description: true,
             status: true,
           },
+          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
           take: limit,
         }),
 
-        // Search tasks by title or description (case-insensitive)
         prisma.task.findMany({
           where: {
             workspaceId: this.tenant.workspaceId,
@@ -55,8 +54,9 @@ export class SearchService {
             status: true,
             priority: true,
             projectId: true,
-            project: { select: { name: true } },
+            project: { select: { title: true } },
           },
+          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
           take: limit,
         }),
       ]);
@@ -156,7 +156,7 @@ export class SearchService {
         dueDate: true,
         projectId: true,
         assigneeId: true,
-        project: { select: { name: true } },
+        project: { select: { title: true } },
         assignee: { select: { id: true, name: true, email: true } },
       },
       orderBy,
@@ -194,7 +194,7 @@ export class SearchService {
 
     if (params.query) {
       where.OR = [
-        { name: { contains: params.query, mode: 'insensitive' } },
+        { title: { contains: params.query, mode: 'insensitive' } },
         { description: { contains: params.query, mode: 'insensitive' } },
       ];
     }
@@ -216,7 +216,7 @@ export class SearchService {
       where,
       select: {
         id: true,
-        name: true,
+        title: true,
         description: true,
         status: true,
         dueDate: true,

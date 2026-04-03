@@ -13,7 +13,7 @@ export class MentionRepository {
    * Add a mention to a comment
    */
   async addMention(commentId: string, mentionedUserId: string) {
-    return await prisma.mention.create({
+    return await prisma.commentMention.create({
       data: {
         commentId,
         mentionedUserId,
@@ -34,7 +34,7 @@ export class MentionRepository {
    * Remove a mention from a comment
    */
   async removeMention(commentId: string, mentionedUserId: string) {
-    return await prisma.mention.deleteMany({
+    return await prisma.commentMention.deleteMany({
       where: {
         commentId,
         mentionedUserId,
@@ -46,7 +46,7 @@ export class MentionRepository {
    * Get all mentions for a comment
    */
   async getCommentMentions(commentId: string) {
-    return await prisma.mention.findMany({
+    return await prisma.commentMention.findMany({
       where: {
         commentId,
       },
@@ -66,14 +66,14 @@ export class MentionRepository {
    * Get mentions for a user (to find all comments mentioning them)
    */
   async getUserMentions(userId: string) {
-    return await prisma.mention.findMany({
+    return await prisma.commentMention.findMany({
       where: {
         mentionedUserId: userId,
       },
       include: {
         comment: {
           include: {
-            user: {
+            author: {
               select: {
                 id: true,
                 name: true,
@@ -99,7 +99,7 @@ export class MentionRepository {
    * Check if a user is mentioned in a comment
    */
   async isMentioned(commentId: string, userId: string): Promise<boolean> {
-    const mention = await prisma.mention.findFirst({
+    const mention = await prisma.commentMention.findFirst({
       where: {
         commentId,
         mentionedUserId: userId,
@@ -122,7 +122,7 @@ export class MentionRepository {
     // Create mentions (ignore if already exists)
     const mentions = await Promise.all(
       uniqueIds.map((userId) =>
-        prisma.mention.create({
+        prisma.commentMention.create({
           data: {
             commentId,
             mentionedUserId: userId,

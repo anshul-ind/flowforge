@@ -141,6 +141,7 @@ export const roleMatrix: Record<
       Action.READ_COMMENT,
       Action.UPDATE_OWN_COMMENT,
       Action.DELETE_OWN_COMMENT,
+      Action.DELETE_ANY_COMMENT,
     ]),
     [Resource.APPROVAL]: new Set([
       Action.CREATE_APPROVAL,
@@ -171,7 +172,6 @@ export const roleMatrix: Record<
     [Resource.APPROVAL]: new Set([
       Action.CREATE_APPROVAL,
       Action.READ_APPROVAL,
-      Action.APPROVE,
     ]),
   },
 
@@ -202,15 +202,5 @@ export function canPerform(
   resource: Resource,
   action: Action
 ): boolean {
-  const result = roleMatrix[role]?.[resource]?.has(action) ?? false;
-  console.log('[Permission Check]', { 
-    role: role || 'UNDEFINED', 
-    resource, 
-    action, 
-    result,
-    roleExists: !!roleMatrix[role],
-    resourceExists: !!roleMatrix[role]?.[resource],
-    roleKeys: Object.keys(roleMatrix)
-  });
-  return result;
+  return roleMatrix[role]?.[resource]?.has(action) ?? false;
 }

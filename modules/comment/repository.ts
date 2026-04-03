@@ -17,16 +17,15 @@ export class CommentRepository {
    * Includes author details
    */
   async getTaskComments(taskId: string): Promise<
-    (Comment & { user: { id: string; name: string | null; email: string } })[]
+    (Comment & { author: { id: string; name: string | null; email: string } })[]
   > {
     return await prisma.comment.findMany({
       where: {
         taskId,
         workspaceId: this.tenant.workspaceId,
-        deletedAt: null,
       },
       include: {
-        user: {
+        author: {
           select: { id: true, name: true, email: true },
         },
       },
@@ -52,16 +51,15 @@ export class CommentRepository {
    * Get comment with user details (excludes deleted)
    */
   async getCommentWithUser(commentId: string): Promise<
-    (Comment & { user: { id: string; name: string | null; email: string } }) | null
+    (Comment & { author: { id: string; name: string | null; email: string } }) | null
   > {
     return await prisma.comment.findFirst({
       where: {
         id: commentId,
         workspaceId: this.tenant.workspaceId,
-        deletedAt: null,
       },
       include: {
-        user: {
+        author: {
           select: { id: true, name: true, email: true },
         },
       },
@@ -87,8 +85,8 @@ export class CommentRepository {
     return await prisma.comment.create({
       data: {
         taskId: data.taskId,
-        content: data.content,
-        userId: this.tenant.userId,
+        body: data.content,
+        authorId: this.tenant.userId,
         workspaceId: this.tenant.workspaceId,
       },
     });
@@ -106,9 +104,7 @@ export class CommentRepository {
     return await prisma.comment.update({
       where: { id: commentId },
       data: {
-        content,
-        editedAt: new Date(),
-        updatedAt: new Date(),
+        body: content,
       },
     });
   }
@@ -122,9 +118,8 @@ export class CommentRepository {
       throw new Error('Comment not found');
     }
 
-    return await prisma.comment.update({
+    return await prisma.comment.delete({
       where: { id: commentId },
-      data: { deletedAt: new Date() },
     });
   }
 
@@ -134,6 +129,6 @@ export class CommentRepository {
   async isAuthor(commentId: string, userId: string): Promise<boolean> {
     const comment = await this.getComment(commentId);
     if (!comment) return false;
-    return comment.userId === userId;
+    return comment.authorId === userId;
   }
 }

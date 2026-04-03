@@ -40,6 +40,7 @@ export class ReactionRepository {
     try {
       return await prisma.commentReaction.create({
         data: {
+          workspaceId: this.tenant.workspaceId,
           commentId,
           userId: this.tenant.userId,
           emoji,
@@ -61,6 +62,7 @@ export class ReactionRepository {
     const result = await prisma.commentReaction.deleteMany({
       where: {
         commentId,
+        workspaceId: this.tenant.workspaceId,
         userId: this.tenant.userId,
         emoji,
       },
@@ -73,6 +75,13 @@ export class ReactionRepository {
    * Toggle reaction: remove if exists, add if not
    */
   async toggleReaction(commentId: string, emoji: string): Promise<boolean> {
+    // Ensure tenant isolation: user can only react to comments in their workspace.
+    const comment = await prisma.comment.findFirst({
+      where: { id: commentId, workspaceId: this.tenant.workspaceId },
+      select: { id: true },
+    })
+    if (!comment) return false
+
     // Check if user already has this reaction
     const existing = await prisma.commentReaction.findUnique({
       where: {
@@ -100,7 +109,7 @@ export class ReactionRepository {
    */
   async getReactions(commentId: string): Promise<ReactionGroup[]> {
     const reactions = await prisma.commentReaction.findMany({
-      where: { commentId },
+      where: { commentId, workspaceId: this.tenant.workspaceId },
       select: {
         emoji: true,
         userId: true,
@@ -141,7 +150,7 @@ export class ReactionRepository {
     }>
   > {
     const reactions = await prisma.commentReaction.findMany({
-      where: { commentId },
+      where: { commentId, workspaceId: this.tenant.workspaceId },
       include: {
         user: {
           select: {
@@ -185,6 +194,7 @@ export class ReactionRepository {
     const reactions = await prisma.commentReaction.findMany({
       where: {
         commentId,
+        workspaceId: this.tenant.workspaceId,
         userId: this.tenant.userId,
       },
       select: { emoji: true },

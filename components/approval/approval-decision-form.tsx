@@ -116,7 +116,7 @@ export function ApprovalDecisionForm({
         <p className="text-gray-600">
           Requested by: {approval.requester.name || approval.requester.email}
         </p>
-        {approval.notes && <p className="text-gray-600 mt-2">{approval.notes}</p>}
+        {approval.submitNote && <p className="text-gray-600 mt-2">{approval.submitNote}</p>}
       </div>
 
       {error && <div className="text-sm text-red-600 p-3 bg-red-50 rounded">{error}</div>}

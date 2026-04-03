@@ -36,8 +36,8 @@ describe('ProjectService', () => {
   describe('listProjects', () => {
     it('should list projects when user has permission', async () => {
       const mockProjects = [
-        { id: 'p1', name: 'Project 1', status: 'IN_PROGRESS' },
-        { id: 'p2', name: 'Project 2', status: 'PLANNED' },
+        { id: 'p1', title: 'Project 1', status: 'IN_PROGRESS' },
+        { id: 'p2', title: 'Project 2', status: 'PLANNED' },
       ];
 
       vi.spyOn(ProjectPolicy, 'canRead').mockReturnValue(true);
@@ -69,7 +69,7 @@ describe('ProjectService', () => {
 
   describe('getProject', () => {
     it('should retrieve single project', async () => {
-      const mockProject = { id: 'p1', name: 'Project 1' };
+      const mockProject = { id: 'p1', title: 'Project 1' };
 
       vi.spyOn(ProjectPolicy, 'canRead').mockReturnValue(true);
       mockRepository.prototype.getProject.mockResolvedValue(mockProject);
@@ -96,7 +96,7 @@ describe('ProjectService', () => {
 
   describe('createProject', () => {
     it('should create project with sanitized input', async () => {
-      const input = { name: '  Test Project  ', description: 'Test Desc' };
+      const input = { title: '  Test Project  ', description: 'Test Desc' };
       const mockCreated = { id: 'p1', ...input };
 
       vi.spyOn(ProjectPolicy, 'canCreate').mockReturnValue(true);
@@ -104,7 +104,7 @@ describe('ProjectService', () => {
 
       const result = await service.createProject(input);
 
-      expect(result.name).toBe('Test Project'); // Sanitized
+      expect(result.title).toBe('Test Project'); // Sanitized
       expect(mockRepository.prototype.createProject).toHaveBeenCalled();
     });
 
@@ -112,14 +112,14 @@ describe('ProjectService', () => {
       vi.spyOn(ProjectPolicy, 'canCreate').mockReturnValue(false);
 
       await expect(
-        service.createProject({ name: 'Project' })
+        service.createProject({ title: 'Project' })
       ).rejects.toThrow(ForbiddenError);
     });
   });
 
   describe('updateProject', () => {
     it('should update project with authorization check', async () => {
-      const input = { name: 'Updated Project' };
+      const input = { title: 'Updated Project' };
       const mockUpdated = { id: 'p1', ...input };
 
       vi.spyOn(ProjectPolicy, 'canUpdate').mockReturnValue(true);
@@ -137,7 +137,7 @@ describe('ProjectService', () => {
       mockRepository.prototype.getProject.mockResolvedValue(null);
 
       await expect(
-        service.updateProject('nonexistent', { name: 'Updated' })
+        service.updateProject('nonexistent', { title: 'Updated' })
       ).rejects.toThrow(NotFoundError);
     });
   });

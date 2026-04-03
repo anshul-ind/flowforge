@@ -50,7 +50,7 @@ export class ProjectService {
    * OWNER, MANAGER, MEMBER can create
    */
   async createProject(data: {
-    name: string;
+    title: string;
     description?: string;
     dueDate?: Date;
   }): Promise<Project> {
@@ -60,7 +60,7 @@ export class ProjectService {
 
     // Sanitize input
     const sanitizedData = {
-      name: sanitizeText(data.name),
+      title: sanitizeText(data.title),
       description: data.description ? sanitizeText(data.description) : undefined,
       dueDate: data.dueDate,
     };
@@ -75,7 +75,7 @@ export class ProjectService {
   async updateProject(
     projectId: string,
     data: {
-      name?: string;
+      title?: string;
       description?: string;
       status?: ProjectStatus;
       dueDate?: Date | null;
@@ -90,7 +90,7 @@ export class ProjectService {
 
     // Sanitize input
     const sanitizedData = {
-      name: data.name ? sanitizeText(data.name) : undefined,
+      title: data.title ? sanitizeText(data.title) : undefined,
       description: data.description ? sanitizeText(data.description) : undefined,
       status: data.status,
       dueDate: data.dueDate,
