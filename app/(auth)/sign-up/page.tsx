@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/lib/auth/signup-action";
+import { getPasswordPolicyError, PASSWORD_POLICY_SUMMARY } from "@/modules/auth/schemas";
 import { Building2, Zap } from "lucide-react";
 
 export default function SignUpPage() {
@@ -35,8 +36,9 @@ export default function SignUpPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+    const passwordIssue = getPasswordPolicyError(password);
+    if (passwordIssue) {
+      setError(passwordIssue);
       return;
     }
 
@@ -242,7 +244,7 @@ export default function SignUpPage() {
               required
               className="w-full px-4 py-2 rounded-lg border border-border bg-surface text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-50"
             />
-            <p className="text-xs text-muted mt-1">Must be at least 8 characters</p>
+            <p className="text-xs text-muted mt-1">{PASSWORD_POLICY_SUMMARY}</p>
           </div>
 
           {/* Confirm Password Field */}
@@ -265,7 +267,7 @@ export default function SignUpPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 rounded-lg font-medium bg-brand text-black hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 mt-6"
+            className="mt-6 w-full rounded-lg border border-neutral-900 bg-black py-3 text-sm font-semibold text-white shadow-sm hover:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-black/30 disabled:cursor-not-allowed disabled:opacity-55"
           >
             {isLoading ? "Creating account..." : "Create account"}
           </button>

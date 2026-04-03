@@ -2,7 +2,35 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import type { ActionResult } from '@/types/action-result';
 import { successResult, errorResult } from '@/types/action-result';
-import { signUpSchema, type SignUpInput, signInSchema, type SignInInput } from './schemas';
+import { Prisma } from '@/lib/generated/prisma';
+import { type SignUpInput, signInSchema, type SignInInput } from './schemas';
+
+function signupErrorFromUnknown(error: unknown): string {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') {
+      const target = error.meta?.target;
+      const t = Array.isArray(target) ? target.join(', ') : String(target ?? '');
+      if (t.includes('email') || t.includes('User')) {
+        return 'An account with this email already exists';
+      }
+      return 'This value is already in use. Try signing in instead.';
+    }
+    if (error.code === 'P2021' || error.code === 'P2010' || error.code === 'P2022') {
+      return 'The database is not fully set up yet. If you deploy on Vercel, ensure DATABASE_URL is set for build/runtime and migrations run on deploy.';
+    }
+  }
+
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return 'Cannot reach the database. Check DATABASE_URL (SSL, pooling URL) on your server.';
+  }
+
+  const msg = error instanceof Error ? error.message : '';
+  if (/P1001|P1017|ECONNREFUSED|ENOTFOUND|connect timed out|Connection refused/i.test(msg)) {
+    return 'Cannot reach the database right now. Try again shortly or verify your network and DATABASE_URL.';
+  }
+
+  return 'Failed to create account. Please try again.';
+}
 
 /**
  * Authentication Service
@@ -82,7 +110,7 @@ export class AuthService {
       return successResult({ email: user.email, id: user.id }, 'Account created successfully');
     } catch (error) {
       console.error('Signup error:', error);
-      return errorResult('Failed to create account. Please try again.');
+      return errorResult(signupErrorFromUnknown(error));
     }
   }
 

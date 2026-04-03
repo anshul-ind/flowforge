@@ -15,6 +15,17 @@ const passwordSchema = z
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
   .regex(/[0-9]/, 'Password must contain at least one number');
 
+/** Shown under the password field on sign-up (matches `passwordSchema`). */
+export const PASSWORD_POLICY_SUMMARY =
+  '8+ characters, including one uppercase letter, one lowercase letter, and one number.';
+
+/** Client-side check aligned with `passwordSchema` (first failing rule). */
+export function getPasswordPolicyError(password: string): string | null {
+  const parsed = passwordSchema.safeParse(password);
+  if (parsed.success) return null;
+  return parsed.error.issues[0]?.message ?? 'Invalid password';
+}
+
 /**
  * Sign Up Schema
  * Validates new user registration form
