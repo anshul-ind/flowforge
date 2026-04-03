@@ -61,7 +61,7 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="flex min-h-screen overflow-hidden">
+    <div className="flex min-h-screen overflow-y-auto">
       {/* Left Panel - Dark Section (Desktop only) */}
       <div className="hidden lg:flex w-1/2 flex-col justify-between bg-gradient-to-br from-brand to-brand-dark p-12 text-black">
         {/* Logo / Brand section */}

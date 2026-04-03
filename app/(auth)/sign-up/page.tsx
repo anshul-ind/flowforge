@@ -53,8 +53,15 @@ export default function SignUpPage() {
       const result = await signUp(formData);
 
       if (!result.success) {
-        const errorMessage = result.formError || result.message || "Failed to create account";
-        setError(errorMessage);
+        // Prefer field-level Zod messages so users see what to fix.
+        // (The server currently returns message = "Validation failed" plus `fieldErrors`.)
+        if (result.fieldErrors && Object.keys(result.fieldErrors).length > 0) {
+          const allMessages = Object.values(result.fieldErrors).flat();
+          setError(allMessages[0] || result.message || "Validation failed");
+        } else {
+          const errorMessage = result.formError || result.message || "Failed to create account";
+          setError(errorMessage);
+        }
         setIsLoading(false);
         return;
       }
