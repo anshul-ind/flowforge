@@ -59,9 +59,16 @@ export class NotificationRepository {
     const total = await prisma.notification.count({ where });
 
     // Get paginated results
+    // Important: older DBs may not yet have `entityType/entityId`.
+    // Use `select` to avoid selecting non-existent columns.
     const notifications = await prisma.notification.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        type: true,
+        message: true,
+        isRead: true,
+        createdAt: true,
         user: {
           select: {
             id: true,
@@ -101,21 +108,14 @@ export class NotificationRepository {
    * Mark single notification as read
    */
   async markAsRead(notificationId: string) {
-    return await prisma.notification.update({
+    return await prisma.notification.updateMany({
       where: {
         id: notificationId,
+        userId: this.tenant.userId,
+        workspaceId: this.tenant.workspaceId,
       },
       data: {
         isRead: true,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
       },
     });
   }

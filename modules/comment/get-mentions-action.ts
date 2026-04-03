@@ -11,7 +11,7 @@ export async function getMentionsAction(commentId: string) {
     }
 
     // Get mentions for the specified comment
-    const mentions = await prisma.mention.findMany({
+    const mentions = await prisma.commentMention.findMany({
       where: { commentId },
       include: {
         user: {

@@ -111,7 +111,7 @@ export class AnalyticsService {
       );
       return [
         task.title,
-        task.project.name,
+        task.project.title,
         task.assignee?.name || 'Unassigned',
         task.dueDate.toISOString().split('T')[0],
         daysOverdue,
@@ -170,7 +170,7 @@ export class AnalyticsService {
       const daysOverdue = Math.floor(
         (new Date().getTime() - t.dueDate.getTime()) / (1000 * 60 * 60 * 24)
       );
-      return [t.title, t.project.name, t.assignee?.name || 'Unassigned', 
+      return [t.title, t.project.title, t.assignee?.name || 'Unassigned', 
               t.dueDate.toISOString().split('T')[0], daysOverdue];
     });
     sections.push(

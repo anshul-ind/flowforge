@@ -7,6 +7,7 @@ import { generateSlug } from '@/lib/utils/slug-generator';
 import { ActionResult } from '@/types/action-result';
 import { Workspace } from '@/lib/generated/prisma';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/errors';
+import { prisma } from '@/lib/db';
 
 /**
  * Create a new workspace
@@ -32,12 +33,25 @@ export async function createWorkspaceAction(
   try {
     // Get session
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return {
         success: false,
         message: 'You must be logged in to create a workspace',
       };
     }
+
+    // CRITICAL: Ensure authenticated user exists in DB before creating workspace
+    // Use upsert to sync user data: if exists by email, update; if not, create
+    const dbUser = await prisma.user.upsert({
+      where: { email: session.user.email },
+      update: {
+        name: session.user.name ?? undefined,
+      },
+      create: {
+        email: session.user.email,
+        name: session.user.name ?? null,
+      },
+    });
 
     // Validate input
     const parsed = createWorkspaceSchema.safeParse(input);
@@ -60,8 +74,8 @@ export async function createWorkspaceAction(
       };
     }
 
-    // Create workspace
-    const workspace = await createWorkspaceService(name, slug, session.user.id);
+    // Create workspace using the DB user's id
+    const workspace = await createWorkspaceService(name, slug, dbUser.id);
 
     return {
       success: true,
@@ -91,6 +105,9 @@ export async function createWorkspaceAction(
     }
 
     console.error('Error creating workspace:', error);
+    if (error instanceof Error) {
+      console.error('Details:', error.message);
+    }
     return {
       success: false,
       message: 'Failed to create workspace. Please try again.',

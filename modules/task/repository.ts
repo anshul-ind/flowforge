@@ -1,6 +1,7 @@
 import { TenantContext } from '@/lib/tenant/tenant-context';
 import { prisma } from '@/lib/db';
 import { Task, TaskStatus, TaskPriority } from '@/lib/generated/prisma';
+import { taskDueWhere, taskKeywordOr, type TaskListDueFilter } from '@/lib/tasks/list-filters';
 
 /**
  * Task Repository
@@ -18,12 +19,16 @@ export class TaskRepository {
   async listProjectTasks(projectId: string, filters?: {
     status?: TaskStatus;
     assigneeId?: string;
+    q?: string;
+    due?: TaskListDueFilter;
   }): Promise<Task[]> {
-    // Verify project belongs to workspace
     const project = await prisma.project.findFirst({
       where: { id: projectId, workspaceId: this.tenant.workspaceId },
     });
     if (!project) return [];
+
+    const dueClause = taskDueWhere(filters?.due ?? 'all');
+    const qOr = taskKeywordOr(filters?.q ?? '');
 
     return await prisma.task.findMany({
       where: {
@@ -31,8 +36,10 @@ export class TaskRepository {
         workspaceId: this.tenant.workspaceId,
         ...(filters?.status && { status: filters.status }),
         ...(filters?.assigneeId && { assigneeId: filters.assigneeId }),
+        ...(dueClause ?? {}),
+        ...(qOr ? { OR: qOr } : {}),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       include: {
         assignee: { select: { id: true, name: true, email: true } },
       },
@@ -50,7 +57,7 @@ export class TaskRepository {
       },
       orderBy: { dueDate: 'asc' },
       include: {
-        project: { select: { id: true, name: true } },
+        project: { select: { id: true, title: true } },
         assignee: { select: { id: true, name: true } },
       },
     });
@@ -68,7 +75,7 @@ export class TaskRepository {
       },
       include: {
         assignee: { select: { id: true, name: true, email: true } },
-        project: { select: { id: true, name: true } },
+        project: { select: { id: true, title: true } },
       },
     });
   }
@@ -108,6 +115,7 @@ export class TaskRepository {
       data: {
         ...data,
         workspaceId: this.tenant.workspaceId,
+        createdById: this.tenant.userId,
       },
       include: {
         assignee: { select: { id: true, name: true } },

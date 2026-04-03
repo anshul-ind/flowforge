@@ -9,6 +9,7 @@ export async function resolveTenantContext(
     where: {
       workspaceId,
       userId,
+      status: 'ACTIVE',
     },
     include: {
       workspace: true,
@@ -24,13 +25,6 @@ export async function resolveTenantContext(
     userId: membership.userId,
     role: membership.role,
   };
-
-  console.log('[resolveTenantContext] Resolved:', {
-    userId: context.userId,
-    workspaceId: context.workspaceId,
-    role: context.role,
-    roleType: typeof context.role,
-  });
 
   return context;
 }

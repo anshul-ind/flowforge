@@ -9,6 +9,7 @@
 
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
+import { requireUser } from '@/lib/auth/require-user';
 import { parseFormData } from '@/lib/validation/parse';
 import { successResult, errorResult, ActionResult } from '@/types/action-result';
 
@@ -17,7 +18,7 @@ import { successResult, errorResult, ActionResult } from '@/types/action-result'
 // ============================================
 
 const createProjectSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  title: z.string().min(1, 'Title is required').max(100, 'Title too long'),
   description: z.string().max(500).optional(),
   status: z.enum(['PLANNED', 'ACTIVE', 'ON_HOLD', 'COMPLETED', 'ARCHIVED']).default('PLANNED'),
 });
@@ -45,11 +46,13 @@ const createProjectSchema = z.object({
 export async function createProject(
   workspaceId: string,
   formData: FormData
-): Promise<ActionResult<{ id: string; name: string }>> {
+): Promise<ActionResult<{ id: string; title: string }>> {
   try {
+    const user = await requireUser()
+
     // 1. Validate input
     const result = parseFormData(createProjectSchema, {
-      name: formData.get('name'),
+      title: formData.get('title'),
       description: formData.get('description'),
       status: formData.get('status'),
     });
@@ -59,8 +62,8 @@ export async function createProject(
     }
 
     // Extra guard: ensure data and name exist (required for Prisma create)
-    if (!result.data || !result.data.name) {
-      return errorResult('Project name is required');
+    if (!result.data || !result.data.title) {
+      return errorResult('Project title is required');
     }
 
     // At this point TypeScript knows result.data && result.data.name exist
@@ -79,12 +82,13 @@ export async function createProject(
     const project = await prisma.project.create({
       data: {
         ...safeData,
-        name: safeData.name, // Explicitly use the narrowed name
+        title: safeData.title, // Explicitly use the narrowed title
         workspaceId, // Always scoped to workspace!
+        createdById: user.id,
       },
       select: {
         id: true,
-        name: true,
+        title: true,
       },
     });
 
@@ -104,17 +108,17 @@ export async function updateProject(
   workspaceId: string,
   projectId: string,
   formData: FormData
-): Promise<ActionResult<{ id: string; name: string }>> {
+): Promise<ActionResult<{ id: string; title: string }>> {
   try {
     // 1. Validate
     const updateSchema = z.object({
-      name: z.string().min(1).max(100).optional(),
+      title: z.string().min(1).max(100).optional(),
       description: z.string().max(500).optional(),
       status: z.enum(['PLANNED', 'ACTIVE', 'ON_HOLD', 'COMPLETED', 'ARCHIVED']).optional(),
     });
 
     const result = parseFormData(updateSchema, {
-      name: formData.get('name'),
+      title: formData.get('title'),
       description: formData.get('description'),
       status: formData.get('status'),
     });
@@ -138,7 +142,7 @@ export async function updateProject(
       data: updateData,
       select: {
         id: true,
-        name: true,
+        title: true,
       },
     });
 

@@ -46,7 +46,7 @@ export class AnalyticsRepository {
         title: true,
         dueDate: true,
         status: true,
-        project: { select: { name: true } },
+        project: { select: { title: true } },
         assignee: { select: { id: true, name: true, email: true } },
       },
       orderBy: { dueDate: 'asc' },
@@ -70,9 +70,9 @@ export class AnalyticsRepository {
       select: {
         id: true,
         createdAt: true,
-        statusChangedAt: true, // Will need migration if not present
         projectId: true,
-        project: { select: { name: true } },
+        project: { select: { title: true } },
+        updatedAt: true,
       },
     });
 
@@ -86,12 +86,12 @@ export class AnalyticsRepository {
       if (!grouped[task.projectId]) {
         grouped[task.projectId] = {
           projectId: task.projectId,
-          projectName: task.project.name,
+          projectName: task.project.title,
           cycleTimes: [],
         };
       }
 
-      const cycleTimeMs = (task.statusChangedAt?.getTime() || Date.now()) - task.createdAt.getTime();
+      const cycleTimeMs = task.updatedAt.getTime() - task.createdAt.getTime();
       const cycleTimeDays = Math.ceil(cycleTimeMs / (1000 * 60 * 60 * 24));
       grouped[task.projectId].cycleTimes.push(cycleTimeDays);
     }
@@ -216,14 +216,14 @@ export class AnalyticsRepository {
       where: { ...where, status: 'DONE' },
       select: {
         createdAt: true,
-        statusChangedAt: true,
+        updatedAt: true,
       },
     });
 
     let avgCycleTime = 0;
     if (doneTasks.length > 0) {
       const cycleTimes = doneTasks.map(t => {
-        const cycleTimeMs = (t.statusChangedAt?.getTime() || Date.now()) - t.createdAt.getTime();
+        const cycleTimeMs = t.updatedAt.getTime() - t.createdAt.getTime();
         return Math.ceil(cycleTimeMs / (1000 * 60 * 60 * 24));
       });
       avgCycleTime = Math.round(cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length);

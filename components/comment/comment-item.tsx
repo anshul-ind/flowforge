@@ -40,7 +40,7 @@ function MentionDisplay({
 
 interface CommentItemProps {
   comment: Comment & {
-    user: { id: string; name: string | null; email: string };
+    author: { id: string; name: string | null; email: string };
   };
   currentUserId: string;
   currentUserRole: 'OWNER' | 'MANAGER' | 'MEMBER' | 'VIEWER';
@@ -67,7 +67,7 @@ export function CommentItem({
   const [mentions, setMentions] = useState<Array<{ id: string; name: string | null; email: string }>>([]);
   const [isLoadingMentions, setIsLoadingMentions] = useState(false);
 
-  const isAuthor = comment.userId === currentUserId;
+  const isAuthor = comment.authorId === currentUserId;
   const canEdit = isAuthor || currentUserRole === 'MANAGER' || currentUserRole === 'OWNER';
   const canDelete = isAuthor || currentUserRole === 'MANAGER' || currentUserRole === 'OWNER';
   const isDeleted = (comment as any).deletedAt !== null;
@@ -144,7 +144,7 @@ export function CommentItem({
         <CommentForm
           taskId={comment.taskId}
           commentId={comment.id}
-          initialContent={comment.content}
+          initialContent={comment.body}
           isEditing={true}
           onSuccess={() => {
             setIsEditing(false);
@@ -169,8 +169,8 @@ export function CommentItem({
     <div className={`border border-gray-200 rounded-lg p-4 space-y-3 ${isOptimistic ? 'opacity-75 bg-gray-50' : ''}`}>
       <div className="flex justify-between items-start">
         <div>
-          <p className="font-medium text-sm text-gray-900">{comment.user.name || 'Unknown'}</p>
-          <p className="text-xs text-gray-500">{comment.user.email}</p>
+          <p className="font-medium text-sm text-gray-900">{comment.author.name || 'Unknown'}</p>
+          <p className="text-xs text-gray-500">{comment.author.email}</p>
         </div>
         <div className="flex items-center gap-2">
           {isOptimistic && <span className="text-xs text-gray-500 italic">Sending...</span>}
@@ -216,7 +216,7 @@ export function CommentItem({
             h3: ({ node, ...props }) => <h3 className="text-base font-bold text-gray-900 my-2" {...props} />,
           }}
         >
-          {comment.content}
+          {comment.body}
         </ReactMarkdown>
       </div>
 

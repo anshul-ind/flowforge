@@ -91,7 +91,7 @@ export class MentionService {
     // Get comment details for notification
     const comment = await prisma.comment.findUnique({
       where: { id: commentId },
-      select: { taskId: true, content: true },
+      select: { taskId: true, body: true },
     });
 
     // Log mentions and send notifications
@@ -113,7 +113,7 @@ export class MentionService {
             comment.taskId,
             commentId,
             [mention.mentionedUserId],
-            comment.content
+            comment.body
           ).catch(err => console.error('[Comment] Failed to send mention notification:', err));
         }
       }

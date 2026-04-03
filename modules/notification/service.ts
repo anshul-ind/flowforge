@@ -27,15 +27,7 @@ export class NotificationService {
     input: CreateNotificationInput
   ) {
     // Create the notification
-    const notification = await this.repo.createNotification(input);
-
-    console.log('[Notification] Created:', {
-      userId: input.userId,
-      type: input.type,
-      messagePrefix: input.message.substring(0, 50),
-    });
-
-    return notification;
+    return await this.repo.createNotification(input);
   }
 
   /**

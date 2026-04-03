@@ -25,7 +25,7 @@ export class AuthService {
    * 4. Create user in database
    * 5. Return success result
    */
-  static async signup(input: SignUpInput): Promise<ActionResult<{ email: string; id: string }>> {
+  static async signup(input: SignUpInput, userType: 'personal' | 'team' = 'personal'): Promise<ActionResult<{ email: string; id: string }>> {
     try {
       // 1. Check if user already exists
       const existingUser = await prisma.user.findUnique({
@@ -53,7 +53,32 @@ export class AuthService {
         },
       });
 
-      // 4. Return success
+      // 4. If personal user, create a personal workspace
+      if (userType === 'personal') {
+        const workspaceName = input.name ? `${input.name}'s Workspace` : 'My Workspace';
+        await prisma.$transaction(async (tx) => {
+          // Create workspace
+          const ws = await tx.workspace.create({
+            data: {
+              name: workspaceName,
+              slug: `${user.id}-personal`,
+              createdById: user.id,
+            },
+          });
+
+          // Add creator as OWNER member
+          await tx.workspaceMember.create({
+            data: {
+              userId: user.id,
+              workspaceId: ws.id,
+              role: 'OWNER',
+              status: 'ACTIVE',
+            },
+          });
+        });
+      }
+
+      // 5. Return success
       return successResult({ email: user.email, id: user.id }, 'Account created successfully');
     } catch (error) {
       console.error('Signup error:', error);
@@ -85,7 +110,11 @@ export class AuthService {
         return errorResult('Invalid email or password');
       }
 
-      // 2. Verify password hash
+      // 2. Verify password hash (schema allows null passwordHash)
+      if (!user.passwordHash) {
+        return errorResult('Invalid email or password');
+      }
+
       const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
 
       if (!isPasswordValid) {

@@ -43,7 +43,7 @@ export function NotificationPopover({
     if (result.success && result.data) {
       setNotifications(result.data.notifications);
       setUnreadCount(
-        result.data.notifications.filter((n: any) => !n.read).length
+        result.data.notifications.filter((n: any) => !n.isRead).length
       );
     }
     setIsLoading(false);
@@ -53,7 +53,7 @@ export function NotificationPopover({
     const result = await markAllNotificationsReadAction(workspaceId);
     if (result.success) {
       setNotifications(
-        notifications.map((n) => ({ ...n, read: true, readAt: new Date() }))
+        notifications.map((n) => ({ ...n, isRead: true }))
       );
       setUnreadCount(0);
     }

@@ -5,10 +5,10 @@ import { z } from 'zod';
  * Validates project creation form data
  */
 export const createProjectSchema = z.object({
-  name: z
+  title: z
     .string()
-    .min(1, 'Project name is required')
-    .max(100, 'Project name must be less than 100 characters'),
+    .min(1, 'Project title is required')
+    .max(100, 'Project title must be less than 100 characters'),
   description: z
     .string()
     .max(500, 'Description must be less than 500 characters')
@@ -24,10 +24,10 @@ export type CreateProjectInput = z.infer<typeof createProjectSchema>;
  * Validates project update form data
  */
 export const updateProjectSchema = z.object({
-  name: z
+  title: z
     .string()
-    .min(1, 'Project name is required')
-    .max(100, 'Project name must be less than 100 characters')
+    .min(1, 'Project title is required')
+    .max(100, 'Project title must be less than 100 characters')
     .optional(),
   description: z
     .string()

@@ -7,7 +7,7 @@ interface OverdueTask {
   title: string;
   dueDate: Date;
   status: string;
-  project: { name: string };
+  project: { id: string; name: string };
   assignee?: { id: string; name: string | null; email: string } | null;
 }
 
@@ -81,7 +81,7 @@ export function OverdueTasksList({
                 >
                   <td className="py-3 px-4">
                     <Link
-                      href={`/workspace/${workspaceId}/project/${task.project.name}/tasks/${task.id}`}
+                      href={`/workspace/${workspaceId}/projects/${task.project.id}/tasks/${task.id}`}
                       className="text-blue-600 hover:text-blue-700 font-medium truncate"
                     >
                       {task.title}

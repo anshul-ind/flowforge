@@ -4,16 +4,35 @@ import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 
+/**
+ * Sign In Page - PHASE 4
+ * 
+ * Professional authentication page with:
+ * - Split layout (dark left panel + form right)
+ * - Password visibility toggle
+ * - Design tokens (no hardcoded colors)
+ * - Full responsive support
+ * - Accessibility features
+ */
 export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const callbackUrl = searchParams.get("callbackUrl") || "/workspace";
+  const callbackUrlRaw = searchParams.get("callbackUrl") || "/workspace/redirects";
+  const callbackUrl = (() => {
+    try {
+      return decodeURIComponent(callbackUrlRaw);
+    } catch {
+      return callbackUrlRaw;
+    }
+  })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +50,7 @@ export default function SignInPage() {
         setError("Invalid email or password");
         setIsLoading(false);
       } else if (result?.ok) {
+        // Redirect to smart redirect page to determine destination based on role
         router.push(callbackUrl);
         router.refresh();
       }
@@ -41,37 +61,105 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
+    <div className="flex min-h-screen overflow-hidden">
+      {/* Left Panel - Dark Section (Desktop only) */}
+      <div className="hidden lg:flex w-1/2 flex-col justify-between bg-gradient-to-br from-brand to-brand-dark p-12 text-black">
+        {/* Logo / Brand section */}
         <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-            Sign in to FlowForge
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{" "}
-            <Link
-              href="/sign-up"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              create a new account
-            </Link>
+          <div className="mb-8">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-white/20 backdrop-blur">
+              <span className="text-xl font-bold text-black"><img src="./public/assets/flowforge-logo.png" alt="" /></span>
+            </div>
+          </div>
+          <h1 className="text-5xl font-bold tracking-tight">FlowForge</h1>
+          <p className="mt-4 text-lg text-black/80">
+            Manage projects. Collaborate seamlessly. Deliver faster.
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        {/* Features list */}
+        <div className="space-y-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold">Real-time Collaboration</h3>
+              <p className="mt-1 text-sm text-black/70">Work together with your team in real-time</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold">Advanced Analytics</h3>
+              <p className="mt-1 text-sm text-black/70">Track progress with powerful insights</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold">Enterprise Security</h3>
+              <p className="mt-1 text-sm text-black/70">Bank-grade security for your data</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer text */}
+        <div className="text-sm text-white/70">
+          © 2026 FlowForge. All rights reserved.
+        </div>
+      </div>
+
+      {/* Right Panel - Form Section */}
+      <div className="flex w-full lg:w-1/2 flex-col items-center justify-center px-6 py-12 sm:px-8 lg:px-12">
+        <div className="w-full max-w-lg space-y-8">
+          {/* Page Header */}
+          <div className="space-y-3">
+            <h2 className="text-3xl font-bold tracking-tight text-primary">
+              Welcome back
+            </h2>
+            <p className="text-base text-secondary">
+              Sign in to your account to continue
+            </p>
+          </div>
+
+          {/* Error Message */}
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="flex">
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">{error}</h3>
+            <div role="alert" className="rounded-lg border border-danger-300 bg-danger-50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-danger" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
                 </div>
+                <p className="text-sm font-medium text-danger">{error}</p>
               </div>
             </div>
           )}
 
-          <div className="-space-y-px rounded-md shadow-sm">
+          {/* Sign In Form */}
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* Email Field */}
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label htmlFor="email" className="block text-sm font-medium text-primary">
                 Email address
               </label>
               <input
@@ -82,40 +170,104 @@ export default function SignInPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="relative block w-full rounded-t-md border-0 px-3 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                placeholder="Email address"
+                className="mt-2 block w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-primary placeholder:text-tertiary focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50 sm:text-sm"
+                placeholder="you@example.com"
                 disabled={isLoading}
               />
             </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="relative block w-full rounded-b-md border-0 px-3 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                placeholder="Password"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
 
-          <div>
+            {/* Password Field */}
+            <div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="block text-sm font-medium text-primary">
+                  Password
+                </label>
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-sm font-medium text-brand hover:text-brand-dark transition-colors"
+                  title="Forgot your password?"
+                >
+                  Forgot?
+                </Link>
+              </div>
+              <div className="mt-2 relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full rounded-lg border border-border bg-surface px-4 py-2.5 pr-10 text-primary placeholder:text-tertiary focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50 sm:text-sm"
+                  placeholder="Enter your password"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-tertiary hover:text-secondary transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-brand px-4 py-2.5 font-semibold text-white hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors sm:text-sm"
             >
-              {isLoading ? "Signing in..." : "Sign in"}
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Signing in...
+                </span>
+              ) : (
+                "Sign in"
+              )}
             </button>
+          </form>
+
+          {/* Sign Up Link */}
+          <div className="text-center">
+            <p className="text-sm text-secondary">
+              Don't have an account?{" "}
+              <Link
+                href="/sign-up"
+                className="font-semibold text-brand hover:text-brand-dark transition-colors"
+              >
+                Create one now
+              </Link>
+            </p>
           </div>
-        </form>
+
+          {/* Divider
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-surface px-2 text-tertiary">Or continue with</span>
+            </div>
+          </div> */}
+
+          {/* Demo Credentials */}
+          {/* <div className="rounded-lg border border-border bg-surface-alt p-4">
+            <p className="text-xs font-medium text-secondary mb-3">Demo Account</p>
+            <div className="space-y-2 text-xs text-tertiary font-mono">
+              <p><strong>Email:</strong> demo@example.com</p>
+              <p><strong>Password:</strong> DemoPass123!</p>
+            </div> */}
+          {/* </div> */}
+        </div>
       </div>
     </div>
   );

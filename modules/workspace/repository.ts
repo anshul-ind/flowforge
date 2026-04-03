@@ -156,18 +156,30 @@ export class WorkspaceRepository {
    * Creator is automatically added as OWNER
    */
   static async create(name: string, slug: string, creatorId: string): Promise<Workspace> {
-    const workspace = await prisma.workspace.create({
-      data: {
-        name,
-        slug,
-        members: {
-          create: {
-            userId: creatorId,
-            role: 'OWNER',
-          },
+    // Create workspace and member in transaction to ensure consistency
+    const workspace = await prisma.$transaction(async (tx) => {
+      // 1. Create workspace
+      const ws = await tx.workspace.create({
+        data: {
+          name,
+          slug,
+          createdById: creatorId,
         },
-      },
+      });
+
+      // 2. Add creator as OWNER member
+      await tx.workspaceMember.create({
+        data: {
+          userId: creatorId,
+          workspaceId: ws.id,
+          role: 'OWNER',
+          status: 'ACTIVE',
+        },
+      });
+
+      return ws;
     });
+
     return workspace;
   }
 

@@ -72,16 +72,29 @@ export async function getUnreadCountAction(
  * Mark notification as read
  */
 export async function markNotificationReadAction(
-  notificationId: string
+  notificationId: string,
+  workspaceId: string
 ): Promise<ActionResult<{ id: string }>> {
   try {
     const user = await requireUser();
+    const tenant = await resolveTenantContext(workspaceId, user.id);
 
-    // Update notification directly (isRead field)
-    await prisma.notification.update({
-      where: { id: notificationId },
+    if (!tenant) {
+      return errorResult('Workspace access denied');
+    }
+
+    const result = await prisma.notification.updateMany({
+      where: {
+        id: notificationId,
+        userId: user.id,
+        workspaceId,
+      },
       data: { isRead: true },
     });
+
+    if (result.count === 0) {
+      return errorResult('Notification not found');
+    }
 
     return successResult({ id: notificationId }, 'Marked as read');
   } catch (error) {

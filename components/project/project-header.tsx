@@ -27,7 +27,7 @@ export function ProjectHeader({ project }: { project: Project }) {
     <div className="bg-white rounded-lg border border-gray-200 p-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{project.name}</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{project.title}</h1>
 
           {project.description && (
             <p className="text-gray-600 mt-2 max-w-2xl">{project.description}</p>

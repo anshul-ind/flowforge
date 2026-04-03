@@ -21,7 +21,7 @@ export function CommentsList({
   tenant,
 }: CommentsListProps) {
   const [comments, setComments] = useState<
-    (Comment & { user: { id: string; name: string | null; email: string } })[]
+    (Comment & { author: { id: string; name: string | null; email: string } })[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,18 +51,17 @@ export function CommentsList({
       pendingOptimisticIdRef.current = tempId;
 
       const optimisticComment: Comment & {
-        user: { id: string; name: string | null; email: string };
+        author: { id: string; name: string | null; email: string };
       } = {
         id: tempId,
         taskId,
-        userId: currentUserId,
+        authorId: currentUserId,
         workspaceId: tenant.workspaceId,
-        content,
+        projectId: null,
+        body: content,
         createdAt: new Date(),
         updatedAt: new Date(),
-        editedAt: null,
-        deletedAt: null,
-        user: {
+        author: {
           id: currentUserId,
           name: 'You',
           email: 'loading...',

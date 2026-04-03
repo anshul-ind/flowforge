@@ -89,9 +89,6 @@ export async function updateTaskAction(
       }
     }
 
-    // Parse tags
-    const tags = validData.tags?.split(',').filter(t => t.trim());
-
     const task = await service.updateTask(taskId, {
       title: validData.title,
       description: validData.description ?? undefined,
@@ -104,7 +101,7 @@ export async function updateTaskAction(
     console.log('[Task Action] Task updated:', task.id);
 
     // 5. Revalidate cache
-    revalidatePath(`/workspace/${workspaceId}/project/${projectId}`);
+    revalidatePath(`/workspace/${workspaceId}/projects/${projectId}`);
 
     return successResult(
       { id: task.id, title: task.title },

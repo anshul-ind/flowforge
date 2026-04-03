@@ -9,10 +9,26 @@ interface TopbarProps {
 }
 
 /**
- * Topbar Component (Server Component)
+ * Topbar Component - PHASE 3
  * 
- * Top navigation bar showing user profile, notifications, and sign-out button
- * NotificationPopover is a client component, imported and used here
+ * Server Component
+ * 
+ * Top navigation bar with search, notifications, and user profile.
+ * Uses design tokens for all colors, spacing, and typography.
+ * 
+ * Features:
+ * - 52px fixed height sticky header
+ * - Search input (left side)
+ * - Notifications popover (center-right)
+ * - User profile menu (right side)
+ * - Token-based styling
+ * - Full responsive support
+ * 
+ * Accessibility:
+ * - Semantic header element with role="banner"
+ * - Proper focus management for interactive elements
+ * - Aria labels on all buttons
+ * - Keyboard navigation support
  * 
  * @param user - Current authenticated user
  * @param workspaceId - Current workspace ID for notifications
@@ -24,30 +40,33 @@ export function Topbar({ user, workspaceId }: TopbarProps) {
 
   return (
     <header 
-      className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between"
+      className="sticky top-0 z-40 flex h-13 items-center justify-between border-b border-black bg-transparent px-6 py-3"
       role="banner"
     >
-      {/* Left: search input */}
-      {workspaceId && <TopbarSearchInput workspaceId={workspaceId} />}
+      {/* Left: Search input */}
+      <div className="flex-1">
+        {workspaceId && <TopbarSearchInput workspaceId={workspaceId} />}
+      </div>
 
-      {/* Right: notifications and user menu */}
+      {/* Right: Notifications and user menu */}
       <div className="flex items-center gap-4">
         {/* Notifications Popover */}
         {workspaceId && <NotificationPopover workspaceId={workspaceId} />}
 
-        {/* User profile section */}
-        <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-          {/* Avatar */}
+        {/* User profile section with divider */}
+        <div className="flex items-center gap-3 border-l border-border pl-4">
+          {/* User Avatar */}
           <div 
-            className="w-9 h-9 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-black font-semibold text-white text-sm"
             aria-label={`${user.name || 'User'} avatar`}
+            title={user.name || user.email || 'User'}
           >
             {userInitial}
           </div>
 
-          {/* User name and sign-out */}
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-900">
+          {/* User info and sign-out button */}
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-black truncate">
               {user.name || user.email || 'User'}
             </span>
             <SignOutButton />

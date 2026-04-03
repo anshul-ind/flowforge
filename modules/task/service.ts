@@ -4,6 +4,7 @@ import { sanitizeText } from '@/lib/input/sanitize';
 import { TaskPolicy } from './policies';
 import { TaskRepository } from './repository';
 import { Task, TaskStatus, TaskPriority } from '@/lib/generated/prisma';
+import type { TaskListDueFilter } from '@/lib/tasks/list-filters';
 import { notifyTaskAssignment } from '@/modules/notification/service';
 
 /**
@@ -23,7 +24,7 @@ export class TaskService {
    */
   async listProjectTasks(
     projectId: string,
-    filters?: { status?: TaskStatus; assigneeId?: string }
+    filters?: { status?: TaskStatus; assigneeId?: string; q?: string; due?: TaskListDueFilter }
   ): Promise<Task[]> {
     if (!TaskPolicy.canRead(this.tenant)) {
       throw new ForbiddenError('Cannot read tasks');

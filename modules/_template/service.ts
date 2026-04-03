@@ -54,7 +54,7 @@ export class ProjectService {
 
     // Data access
     const project = await this.repo.create({
-      name: input.name,
+      title: input.title,
       description: input.description,
     });
 
@@ -97,7 +97,7 @@ export class ProjectService {
     // }
 
     return await this.repo.update(projectId, {
-      name: input.name,
+      title: input.title,
       description: input.description,
     });
     // repo.update throws NotFoundError if project doesn't exist or wrong workspace

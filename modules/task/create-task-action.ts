@@ -6,7 +6,7 @@ import { resolveTenantContext } from '@/lib/tenant/resolve-tenant';
 import { parseFormData } from '@/lib/validation/parse';
 import { successResult, errorResult, ActionResult } from '@/types/action-result';
 import { TaskService } from './service';
-import { TaskPriority, TaskStatus } from '@/lib/generated/prisma';
+import { TaskPriority } from '@/lib/generated/prisma';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -85,9 +85,6 @@ export async function createTaskAction(
       }
     }
 
-    // Parse tags
-    const tags = validData.tags?.split(',').filter(t => t.trim()) || [];
-
     const task = await service.createTask({
       projectId,
       title: validData.title,
@@ -100,7 +97,7 @@ export async function createTaskAction(
     console.log('[Task Action] Task created:', task.id);
 
     // 5. Revalidate cache
-    revalidatePath(`/workspace/${workspaceId}/project/${projectId}`);
+    revalidatePath(`/workspace/${workspaceId}/projects/${projectId}`);
 
     return successResult(
       { id: task.id, title: task.title },

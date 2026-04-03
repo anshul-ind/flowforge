@@ -11,7 +11,7 @@ export function Input({
 }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+      className={`w-full px-3 py-2 border-2 border-black rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black disabled:opacity-50 disabled:cursor-not-allowed ${
         className || ''
       }`}
       {...props}

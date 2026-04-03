@@ -10,20 +10,24 @@ export const metadata: Metadata = {
 
 export default async function SearchPage({
   params,
-  searchParams,
 }: {
-  params: { workspaceId: string };
-  searchParams: { q?: string };
+  params: Promise<{ workspaceId: string }>
 }) {
-  // Auth check
-  const user = await requireUser();
+  const user = await requireUser()
+  const { workspaceId } = await params
+  const tenant = await resolveTenantContext(workspaceId, user.id)
 
-  // Tenant check
-  const tenant = await resolveTenantContext(params.workspaceId, user.id);
+  if (!tenant) {
+    return (
+      <div className="min-h-screen bg-gray-50 px-4 py-12">
+        <p className="text-center text-gray-600">You don&apos;t have access to this workspace.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <SearchResultsComponent workspaceId={params.workspaceId} />
+      <SearchResultsComponent workspaceId={workspaceId} />
     </div>
-  );
+  )
 }
