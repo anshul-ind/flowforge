@@ -1,0 +1,24 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "backend-complete",
+    "dev",
+    "feature/domain-foundations",
+    "main",
+    "vedansh"
+  ],
+  "parent": {
+    "backend-complete": "main",
+    "dev": "main",
+    "feature/domain-foundations": "main",
+    "main": null,
+    "vedansh": "main"
+  },
+  "order": [
+    "main",
+    "backend-complete",
+    "dev",
+    "feature/domain-foundations",
+    "vedansh"
+  ]
+}
