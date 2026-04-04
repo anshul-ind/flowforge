@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "prisma migrate deploy && prisma generate && next build",
     "start": "next start",
+    "start:prod": "next start",
+    "db:migrate:deploy": "prisma migrate deploy",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
