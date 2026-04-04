@@ -58,6 +58,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           };
         } catch (error) {
           console.error("Authentication error:", error);
+          const msg = error instanceof Error ? error.message : "";
+          if (/P1001|P1017|ECONNREFUSED|Can't reach database|DatabaseNotReachable/i.test(msg)) {
+            console.error(
+              "[flowforge] Sign-in failed: PostgreSQL unreachable. Fix DATABASE_URL and ensure Postgres runs on this server. See DEPLOYMENT.md."
+            );
+          }
           return null;
         }
       },
