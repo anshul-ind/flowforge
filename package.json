@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma migrate deploy && prisma generate && next build",
-    "start": "next start",
+    "dev": "node init && next dev",
+    "build": "node init && prisma migrate deploy && prisma generate && next build",
+    "start": "node init && next start",
     "start:prod": "next start",
     "db:migrate:deploy": "prisma migrate deploy",
     "lint": "eslint .",
