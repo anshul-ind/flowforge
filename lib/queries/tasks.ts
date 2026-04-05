@@ -34,6 +34,7 @@ export async function getTaskWithRelations(taskId: string, workspaceId: string) 
         },
         orderBy: { createdAt: 'desc' },
       },
+      // One pending approval per task (schema: Task.approvalRequests is ApprovalRequest?, not a list)
       approvalRequests: {
         include: {
           submitter: {
@@ -51,7 +52,6 @@ export async function getTaskWithRelations(taskId: string, workspaceId: string) 
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
       },
     },
   })
@@ -92,6 +92,7 @@ export async function getTasksPendingApproval(workspaceId: string) {
     where: {
       workspaceId,
       status: 'IN_REVIEW',
+      approvalRequests: { status: 'PENDING' },
     },
     include: {
       project: true,
@@ -102,11 +103,7 @@ export async function getTasksPendingApproval(workspaceId: string) {
           name: true,
         },
       },
-      approvalRequests: {
-        where: { status: 'PENDING' },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-      },
+      approvalRequests: true,
     },
     orderBy: { submittedAt: 'desc' },
   })
@@ -132,10 +129,7 @@ export async function getTasksByStatusInProject(
           name: true,
         },
       },
-      approvalRequests: {
-        where: { status: 'PENDING' },
-        take: 1,
-      },
+      approvalRequests: true,
     },
     orderBy: [{ status: 'asc' }, { dueDate: 'asc' }],
   })
