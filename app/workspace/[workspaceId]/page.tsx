@@ -31,6 +31,8 @@ export default async function WorkspacePage({
   const service = new WorkspaceService(tenant);
   const workspace = await service.getWorkspace();
   const members = await service.getMembers();
+//   const members = [];
+// const workspace = { id: workspaceId, name: "Test Workspace" };
 
   // Mock data for now - in production, fetch from database
   const stats = {

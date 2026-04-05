@@ -1,56 +1,25 @@
 /**
  * Input Sanitization Utilities
- * 
- * Strip HTML from string fields and sanitize comment bodies
- * Prevents XSS attacks and improves data integrity
+ * Server-safe version
  */
 
-import DOMPurify from 'isomorphic-dompurify';
-
-/**
- * Sanitize plain text input (remove all HTML)
- * Safe for fields like task titles, project names, workspace names
- */
 export function sanitizeText(input: string | null | undefined): string {
   if (!input) return '';
 
-  // Remove all HTML tags
-  return DOMPurify.sanitize(input, { ALLOWED_TAGS: [] }).trim();
+  return input
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-/**
- * Sanitize comment body (allow formatted text)
- * Allows: bold, italic, code, links, lists
- * Blocks: scripts, forms, event handlers, iframes
- */
 export function sanitizeCommentBody(
   input: string | null | undefined
 ): string {
   if (!input) return '';
 
-  return DOMPurify.sanitize(input, {
-    ALLOWED_TAGS: [
-      'p',
-      'br',
-      'strong',
-      'em',
-      'code',
-      'pre',
-      'ul',
-      'ol',
-      'li',
-      'a',
-      'blockquote',
-    ],
-    ALLOWED_ATTR: ['href', 'title', 'rel'],
-    // Enforce target="_blank" and rel="noopener noreferrer" on links
-    KEEP_CONTENT: true,
-  }).trim();
+  return input.trim();
 }
 
-/**
- * Sanitize URL (validate it's a safe URL)
- */
 export function sanitizeUrl(
   input: string | null | undefined
 ): string | null {
@@ -58,20 +27,15 @@ export function sanitizeUrl(
 
   try {
     const url = new URL(input);
-    // Only allow http and https protocols
     if (!['http:', 'https:'].includes(url.protocol)) {
       return null;
     }
     return url.toString();
   } catch {
-    // Not a valid URL
     return null;
   }
 }
 
-/**
- * Sanitize email (basic validation)
- */
 export function sanitizeEmail(
   input: string | null | undefined
 ): string | null {
@@ -87,10 +51,6 @@ export function sanitizeEmail(
   return email;
 }
 
-/**
- * Sanitize full user input object
- * Applies appropriate sanitization per field type
- */
 export function sanitizeInput<T extends Record<string, any>>(
   input: T,
   schema: Record<keyof T, 'text' | 'html' | 'email' | 'url'> | null = null
@@ -123,9 +83,6 @@ export function sanitizeInput<T extends Record<string, any>>(
   return sanitized;
 }
 
-/**
- * Validate input length constraints
- */
 export function validateInputLength(
   input: string | null | undefined,
   maxLength: number,
@@ -148,13 +105,13 @@ export function validateInputLength(
   return { valid: true };
 }
 
-/**
- * Escape HTML for display (prevent XSS in templating)
- */
 export function escapeHtml(text: string | null | undefined): string {
   if (!text) return '';
 
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
