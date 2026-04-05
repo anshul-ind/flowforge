@@ -26,7 +26,7 @@ export async function InviteFlow({ token }: { token: string }) {
 
   let invite
   try {
-    invite = await ({
+    invite = await prisma.workspaceInvite.findUnique({
       where: { tokenHash: hashInviteToken(trimmed) },
       include: {
         workspace: { select: { id: true, name: true } },
