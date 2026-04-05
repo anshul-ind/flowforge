@@ -1,5 +1,6 @@
 import type { WorkspaceRole } from '@/lib/generated/prisma'
 import { canPerform, Action, Resource } from '@/lib/permissions/role-matrix'
+import { canPerformWorkspaceAction } from '@/lib/permissions/role-permissions'
 
 /**
  * Workspace permission helpers — delegate to role-matrix (single source of truth).
@@ -52,13 +53,18 @@ export function canArchiveProject(role: WorkspaceRole): boolean {
 }
 
 export function hasMinimumRole(role: WorkspaceRole, minimumRole: WorkspaceRole): boolean {
-  const roleHierarchy = { OWNER: 4, MANAGER: 3, MEMBER: 2, VIEWER: 1 }
+  const roleHierarchy = { OWNER: 5, MANAGER: 4, MEMBER: 3, VIEWER: 2, TASK_ASSIGNEE: 1 }
   return roleHierarchy[role] >= roleHierarchy[minimumRole]
 }
 
 /** Any active workspace member may use workspace-scoped search (read-only discovery). */
 export function canSearchWorkspace(_role: WorkspaceRole): boolean {
   return true
+}
+
+/** Audit / activity log (workspace RBAC matrix). */
+export function canViewAuditLog(role: WorkspaceRole): boolean {
+  return canPerformWorkspaceAction(role, 'view_audit_log')
 }
 
 /** Workspace analytics UI — OWNER only (sidebar + route guard). */

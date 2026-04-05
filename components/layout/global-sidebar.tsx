@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronDown, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { WorkspaceRole } from '@/lib/generated/prisma'
+import { canViewAuditLog } from '@/lib/permissions'
 
 interface NavItem {
   label: string
@@ -86,6 +88,9 @@ export function GlobalSidebar({
               { label: 'Overview', href: `/workspace/${w.id}` },
               { label: 'Members', href: `/workspace/${w.id}/members` },
               { label: 'Invitations', href: `/workspace/${w.id}/invitations` },
+              ...(canViewAuditLog(w.role as WorkspaceRole)
+                ? [{ label: 'Activity log', href: `/workspace/${w.id}/audit` }]
+                : []),
               { label: 'Settings', href: `/workspace/${w.id}/settings` },
             ],
           }

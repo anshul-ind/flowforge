@@ -1,5 +1,6 @@
 import { TenantContext } from '@/lib/tenant/tenant-context';
 import { prisma } from '@/lib/db';
+import type { Prisma } from '@/lib/generated/prisma';
 import { Task, TaskStatus, TaskPriority } from '@/lib/generated/prisma';
 import { taskDueWhere, taskKeywordOr, type TaskListDueFilter } from '@/lib/tasks/list-filters';
 
@@ -30,15 +31,29 @@ export class TaskRepository {
     const dueClause = taskDueWhere(filters?.due ?? 'all');
     const qOr = taskKeywordOr(filters?.q ?? '');
 
+    const baseWhere: Prisma.TaskWhereInput = {
+      projectId,
+      workspaceId: this.tenant.workspaceId,
+      ...(filters?.status && { status: filters.status }),
+      ...(filters?.assigneeId && { assigneeId: filters.assigneeId }),
+      ...(dueClause ?? {}),
+    };
+
+    const andParts: Prisma.TaskWhereInput[] = [baseWhere];
+    if (this.tenant.role === 'TASK_ASSIGNEE') {
+      andParts.push({
+        OR: [
+          { assigneeId: this.tenant.userId },
+          { assignees: { some: { userId: this.tenant.userId } } },
+        ],
+      });
+    }
+    if (qOr) {
+      andParts.push({ OR: qOr });
+    }
+
     return await prisma.task.findMany({
-      where: {
-        projectId,
-        workspaceId: this.tenant.workspaceId,
-        ...(filters?.status && { status: filters.status }),
-        ...(filters?.assigneeId && { assigneeId: filters.assigneeId }),
-        ...(dueClause ?? {}),
-        ...(qOr ? { OR: qOr } : {}),
-      },
+      where: andParts.length > 1 ? { AND: andParts } : baseWhere,
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       include: {
         assignee: { select: { id: true, name: true, email: true } },
@@ -53,7 +68,10 @@ export class TaskRepository {
     return await prisma.task.findMany({
       where: {
         workspaceId: this.tenant.workspaceId,
-        assigneeId: userId,
+        OR: [
+          { assigneeId: userId },
+          { assignees: { some: { userId } } },
+        ],
       },
       orderBy: { dueDate: 'asc' },
       include: {

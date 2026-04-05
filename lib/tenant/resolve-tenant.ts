@@ -1,5 +1,6 @@
-import { prisma } from "@/lib/db";
-import { TenantContext } from './tenant-context';
+import { prisma } from '@/lib/db'
+import { ForbiddenError } from '@/lib/errors'
+import { TenantContext } from './tenant-context'
 
 export async function resolveTenantContext(
   workspaceId: string,
@@ -12,19 +13,32 @@ export async function resolveTenantContext(
       status: 'ACTIVE',
     },
     include: {
-      workspace: true,
+      workspace: { select: { organizationId: true } },
     },
-  });
+  })
 
-  if (!membership) {
-    return null;
+  if (!membership?.workspace) {
+    return null
   }
 
-  const context: TenantContext = {
+  return {
     workspaceId: membership.workspaceId,
+    organizationId: membership.workspace.organizationId,
     userId: membership.userId,
     role: membership.role,
-  };
+  }
+}
 
-  return context;
+/**
+ * Server-side guard: active workspace membership with org boundary attached.
+ */
+export async function requireTenantContext(
+  workspaceId: string,
+  userId: string
+): Promise<TenantContext> {
+  const ctx = await resolveTenantContext(workspaceId, userId)
+  if (!ctx) {
+    throw new ForbiddenError('You do not have access to this workspace')
+  }
+  return ctx
 }

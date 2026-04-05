@@ -7,6 +7,7 @@ import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { User } from '@/types/next-auth'
 import type { WorkspaceRole } from '@/lib/generated/prisma'
+import { canViewAuditLog } from '@/lib/permissions'
 
 interface WorkspaceSidebarProps {
   user: User | null
@@ -53,6 +54,8 @@ export function WorkspaceSidebar({
 
   const isActive = (href: string) => pathname === href
 
+  const auditHref = `/workspace/${workspaceId}/audit`
+
   const sections: NavSection[] = [
     {
       id: 'workspace',
@@ -62,6 +65,9 @@ export function WorkspaceSidebar({
         { label: 'Overview', href: `/workspace/${workspaceId}` },
         { label: 'Members', href: `/workspace/${workspaceId}/members` },
         { label: 'Invitations', href: `/workspace/${workspaceId}/invitations` },
+        ...(workspaceRole && canViewAuditLog(workspaceRole)
+          ? [{ label: 'Activity log', href: auditHref }]
+          : []),
         { label: 'Settings', href: `/workspace/${workspaceId}/settings` },
       ],
     },

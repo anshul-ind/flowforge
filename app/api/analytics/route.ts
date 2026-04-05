@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { getWorkspaceContext } from '@/lib/tenancy/workspace-context';
+import { canAccessWorkspaceAnalytics } from '@/lib/permissions';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -42,8 +43,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // OWNER role only
-    if (context.role !== 'OWNER') {
+    if (!canAccessWorkspaceAnalytics(context.role)) {
       return NextResponse.json(
         { error: 'Only workspace owners can view analytics' },
         { status: 403 }

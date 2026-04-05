@@ -9,6 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 import { CommentForm } from './comment-form';
+import type { WorkspaceRole } from '@/lib/generated/prisma';
 import { ReactionList, Reaction } from './reaction-list';
 
 /**
@@ -43,7 +44,7 @@ interface CommentItemProps {
     author: { id: string; name: string | null; email: string };
   };
   currentUserId: string;
-  currentUserRole: 'OWNER' | 'MANAGER' | 'MEMBER' | 'VIEWER';
+  currentUserRole: WorkspaceRole;
   workspaceId: string;
   onCommentUpdated?: () => void;
   onCommentDeleted?: () => void;
@@ -99,7 +100,7 @@ export function CommentItem({
     };
 
     loadData();
-  }, [comment.id]);
+  }, [comment.id, workspaceId]);
 
   // Show deleted placeholder
   if (isDeleted) {
@@ -142,6 +143,7 @@ export function CommentItem({
     return (
       <div className="space-y-2 border border-gray-200 rounded-lg p-4">
         <CommentForm
+          workspaceId={workspaceId}
           taskId={comment.taskId}
           commentId={comment.id}
           initialContent={comment.body}

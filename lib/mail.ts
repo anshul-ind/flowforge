@@ -31,7 +31,8 @@ export function isMailConfigured(): boolean {
 export async function sendInviteEmail(
   to: string,
   inviteUrl: string,
-  workspaceName: string
+  workspaceName: string,
+  options?: { scopeNote?: string }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const transporter = getTransporter()
   if (!transporter) {
@@ -43,14 +44,21 @@ export async function sendInviteEmail(
 
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@localhost'
 
+  const scopeNote = options?.scopeNote?.trim()
+  const scopeText = scopeNote ? `\n\n${scopeNote}` : ''
+  const scopeHtml = scopeNote
+    ? `<p>${escapeHtml(scopeNote)}</p>`
+    : ''
+
   try {
     await transporter.sendMail({
       from,
       to,
       subject: `You're invited to join ${workspaceName}`,
-      text: `You have been invited to join ${workspaceName}.\n\nOpen this link to accept:\n${inviteUrl}`,
+      text: `You have been invited to join ${workspaceName}.${scopeText}\n\nOpen this link to accept:\n${inviteUrl}`,
       html: `
         <p>You have been invited to join <strong>${escapeHtml(workspaceName)}</strong>.</p>
+        ${scopeHtml}
         <p><a href="${escapeHtml(inviteUrl)}">Accept invitation</a></p>
       `,
     })

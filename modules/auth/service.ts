@@ -4,6 +4,7 @@ import { prismaUserFacingMessage } from '@/lib/db/prisma-user-errors';
 import type { ActionResult } from '@/types/action-result';
 import { successResult, errorResult } from '@/types/action-result';
 import { type SignUpInput, signInSchema, type SignInInput } from './schemas';
+import { WorkspaceRepository } from '@/modules/workspace/repository';
 
 /**
  * Authentication Service
@@ -47,6 +48,7 @@ export class AuthService {
           email: input.email,
           passwordHash,
           name: input.name || undefined,
+          emailVerified: new Date(),
         },
         select: {
           id: true,
@@ -54,29 +56,10 @@ export class AuthService {
         },
       });
 
-      // 4. If personal user, create a personal workspace
+      // 4. If personal user, create organization + personal workspace (tenant root)
       if (userType === 'personal') {
         const workspaceName = input.name ? `${input.name}'s Workspace` : 'My Workspace';
-        await prisma.$transaction(async (tx) => {
-          // Create workspace
-          const ws = await tx.workspace.create({
-            data: {
-              name: workspaceName,
-              slug: `${user.id}-personal`,
-              createdById: user.id,
-            },
-          });
-
-          // Add creator as OWNER member
-          await tx.workspaceMember.create({
-            data: {
-              userId: user.id,
-              workspaceId: ws.id,
-              role: 'OWNER',
-              status: 'ACTIVE',
-            },
-          });
-        });
+        await WorkspaceRepository.create(workspaceName, `${user.id}-personal`, user.id);
       }
 
       // 5. Return success

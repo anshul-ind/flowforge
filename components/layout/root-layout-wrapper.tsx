@@ -21,6 +21,8 @@ interface RootLayoutWrapperProps {
  * - /
  * - /sign-in
  * - /sign-up
+ * - /invite/* (accept flow before workspace context exists)
+ * - /auth/* (OAuth callbacks)
  * 
  * Routes WITH sidebar/footer:
  * - /workspace/*
@@ -32,9 +34,16 @@ export function RootLayoutWrapper({ children }: RootLayoutWrapperProps) {
   const sessionResult = useSession()
   const session = sessionResult?.data
 
-  // Routes that should NOT have sidebar/footer
-  const noLayoutRoutes = ['/', '/sign-in', '/sign-up']
-  const shouldShowLayout = !noLayoutRoutes.includes(pathname)
+  // Auth, marketing, and invite flows must stay minimal (no workspace chrome). Otherwise a signed-in
+  // user on /invite/accept gets navbar/sidebar with no workspaceId and can hit broken links / errors.
+  const minimalChrome =
+    pathname == null ||
+    pathname === '/' ||
+    pathname === '/sign-in' ||
+    pathname === '/sign-up' ||
+    pathname.startsWith('/invite') ||
+    pathname.startsWith('/auth/')
+  const shouldShowLayout = !minimalChrome
 
   // Extract workspace and project IDs from pathname if present
   const workspaceMatch = pathname.match(/\/workspace\/([^/]+)/)

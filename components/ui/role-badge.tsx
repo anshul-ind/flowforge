@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 
-type WorkspaceRole = 'OWNER' | 'MANAGER' | 'MEMBER' | 'VIEWER';
+type WorkspaceRole = 'OWNER' | 'MANAGER' | 'MEMBER' | 'VIEWER' | 'TASK_ASSIGNEE';
 
 interface RoleBadgeProps {
   role: WorkspaceRole;
@@ -33,6 +33,11 @@ const roleMap: Record<
     bg: 'bg-role-viewer-bg',
     text: 'text-role-viewer-text',
     label: 'Viewer',
+  },
+  TASK_ASSIGNEE: {
+    bg: 'bg-role-viewer-bg',
+    text: 'text-role-viewer-text',
+    label: 'Assignee',
   },
 };
 

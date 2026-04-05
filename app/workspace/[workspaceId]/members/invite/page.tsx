@@ -4,6 +4,7 @@ import { resolveTenantContext } from '@/lib/tenant/resolve-tenant'
 import { ForbiddenError } from '@/lib/errors'
 import { canInvite } from '@/lib/permissions'
 import { WorkspaceInviteForm } from '@/components/workspace/workspace-invite-form'
+import { prisma } from '@/lib/db'
 
 export default async function MembersInvitePage({
   params,
@@ -30,6 +31,21 @@ export default async function MembersInvitePage({
     )
   }
 
+  const [projects, tasks] = await Promise.all([
+    prisma.project.findMany({
+      where: { workspaceId },
+      select: { id: true, title: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 80,
+    }),
+    prisma.task.findMany({
+      where: { workspaceId },
+      select: { id: true, title: true, projectId: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 150,
+    }),
+  ])
+
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
@@ -46,7 +62,7 @@ export default async function MembersInvitePage({
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <WorkspaceInviteForm workspaceId={workspaceId} />
+        <WorkspaceInviteForm workspaceId={workspaceId} projects={projects} tasks={tasks} />
       </div>
 
       <p className="text-xs text-gray-500">

@@ -3,7 +3,7 @@
  * Defines which roles can perform which actions
  */
 
-export type Role = 'OWNER' | 'MANAGER' | 'MEMBER' | 'VIEWER';
+export type Role = 'OWNER' | 'MANAGER' | 'MEMBER' | 'VIEWER' | 'TASK_ASSIGNEE';
 
 export type Action =
   | 'invite_member'
@@ -49,6 +49,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     'add_comment',
     'submit_for_approval',
     'approve_reject',
+    'view_audit_log',
   ]),
   MEMBER: new Set([
     'create_task',
@@ -59,6 +60,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
   VIEWER: new Set([
     'add_comment', // viewers can comment but not change status
   ]),
+  TASK_ASSIGNEE: new Set(['update_task_status', 'add_comment', 'submit_for_approval']),
 };
 
 /**

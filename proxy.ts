@@ -13,15 +13,29 @@ export default auth((req) => {
   const isProtectedRoute = req.nextUrl.pathname.startsWith("/workspace");
   const { pathname } = req.nextUrl;
 
-  // PHASE 5 SECTION E: Invite Token Detection
+  // Invite: canonical ?token= flow (production emails); preserve callback in query only.
+  if (pathname === "/invite/accept") {
+    const token = req.nextUrl.searchParams.get("token") ?? "";
+    if (!isAuthenticated) {
+      const signInUrl = new URL("/sign-in", req.nextUrl.origin);
+      signInUrl.searchParams.set(
+        "callbackUrl",
+        token ? `/invite/accept?token=${encodeURIComponent(token)}` : "/invite/accept"
+      );
+      return NextResponse.redirect(signInUrl);
+    }
+    return NextResponse.next();
+  }
+
+  // Legacy /invite/{token} (older links)
   const inviteMatch = pathname.match(/^\/invite\/([^/]+)$/);
-  if (inviteMatch) {
+  if (inviteMatch && inviteMatch[1] !== "accept") {
     const token = inviteMatch[1];
     if (!isAuthenticated) {
       const signInUrl = new URL("/sign-in", req.nextUrl.origin);
       signInUrl.searchParams.set(
         "callbackUrl",
-        `/invite/${token}`
+        `/invite/accept?token=${encodeURIComponent(token)}`
       );
       return NextResponse.redirect(signInUrl);
     }

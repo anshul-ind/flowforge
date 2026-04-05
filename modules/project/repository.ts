@@ -18,10 +18,35 @@ export class ProjectRepository {
   async listProjects(filters?: {
     status?: ProjectStatus;
   }): Promise<Project[]> {
+    const statusFilter = filters?.status ? { status: filters.status } : {}
+
+    if (this.tenant.role === 'TASK_ASSIGNEE') {
+      return await prisma.project.findMany({
+        where: {
+          workspaceId: this.tenant.workspaceId,
+          ...statusFilter,
+          OR: [
+            { tasks: { some: { assigneeId: this.tenant.userId } } },
+            {
+              tasks: {
+                some: { assignees: { some: { userId: this.tenant.userId } } },
+              },
+            },
+            {
+              members: {
+                some: { userId: this.tenant.userId, status: 'ACTIVE' },
+              },
+            },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
     return await prisma.project.findMany({
       where: {
         workspaceId: this.tenant.workspaceId,
-        ...(filters?.status && { status: filters.status }),
+        ...statusFilter,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -32,12 +57,39 @@ export class ProjectRepository {
    * Enforces workspace scoping
    */
   async getProject(projectId: string): Promise<Project | null> {
-    return await prisma.project.findFirst({
+    const row = await prisma.project.findFirst({
       where: {
         id: projectId,
         workspaceId: this.tenant.workspaceId,
       },
     });
+    if (!row) return null;
+
+    if (this.tenant.role === 'TASK_ASSIGNEE') {
+      const allowed = await prisma.project.findFirst({
+        where: {
+          id: projectId,
+          workspaceId: this.tenant.workspaceId,
+          OR: [
+            { tasks: { some: { assigneeId: this.tenant.userId } } },
+            {
+              tasks: {
+                some: { assignees: { some: { userId: this.tenant.userId } } },
+              },
+            },
+            {
+              members: {
+                some: { userId: this.tenant.userId, status: 'ACTIVE' },
+              },
+            },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!allowed) return null;
+    }
+
+    return row;
   }
 
   /**

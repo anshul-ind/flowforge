@@ -4,6 +4,7 @@ import { sanitizeText } from '@/lib/input/sanitize';
 import { TaskPolicy } from './policies';
 import { TaskRepository } from './repository';
 import { Task, TaskStatus, TaskPriority } from '@/lib/generated/prisma';
+import { prisma } from '@/lib/db';
 import type { TaskListDueFilter } from '@/lib/tasks/list-filters';
 import { notifyTaskAssignment } from '@/modules/notification/service';
 
@@ -41,6 +42,10 @@ export class TaskService {
       throw new ForbiddenError('Cannot read tasks');
     }
 
+    if (this.tenant.role === 'TASK_ASSIGNEE' && userId !== this.tenant.userId) {
+      throw new ForbiddenError('Cannot list other users tasks');
+    }
+
     return await this.repo.listUserTasks(userId);
   }
 
@@ -55,6 +60,19 @@ export class TaskService {
     const task = await this.repo.getTask(taskId);
     if (!task) {
       throw new NotFoundError('Task not found');
+    }
+
+    if (this.tenant.role === 'TASK_ASSIGNEE') {
+      const linked = await prisma.taskAssignee.findUnique({
+        where: {
+          taskId_userId: { taskId, userId: this.tenant.userId },
+        },
+        select: { id: true },
+      });
+      const isAssignee = task.assigneeId === this.tenant.userId || !!linked;
+      if (!isAssignee) {
+        throw new NotFoundError('Task not found');
+      }
     }
 
     return task;
@@ -115,6 +133,15 @@ export class TaskService {
 
     // Get existing task to check if assignment changed
     const existingTask = await this.getTask(taskId);
+
+    if (
+      this.tenant.role === 'TASK_ASSIGNEE' &&
+      data.assigneeId !== undefined &&
+      data.assigneeId !== null &&
+      data.assigneeId !== this.tenant.userId
+    ) {
+      throw new ForbiddenError('Cannot reassign this task');
+    }
 
     // Sanitize input
     const sanitizedData = {

@@ -12,13 +12,18 @@ export type TenantContext = {
    * Authenticated user ID
    */
   userId: string;
-  
+
+  /**
+   * Tenant root — every workspace belongs to exactly one organization.
+   */
+  organizationId: string;
+
   /**
    * Current workspace ID
    * All queries should be scoped to this workspace for tenant isolation
    */
   workspaceId: string;
-  
+
   /**
    * User's role in this workspace
    * Used for authorization decisions

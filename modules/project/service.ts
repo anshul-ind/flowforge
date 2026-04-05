@@ -22,7 +22,7 @@ export class ProjectService {
    * All roles can view projects
    */
   async listProjects(filters?: { status?: ProjectStatus }): Promise<Project[]> {
-    if (!ProjectPolicy.canRead(this.tenant)) {
+    if (this.tenant.role !== 'TASK_ASSIGNEE' && !ProjectPolicy.canRead(this.tenant)) {
       throw new ForbiddenError('Cannot read projects');
     }
 
@@ -33,7 +33,7 @@ export class ProjectService {
    * Get single project by ID
    */
   async getProject(projectId: string): Promise<Project> {
-    if (!ProjectPolicy.canRead(this.tenant)) {
+    if (this.tenant.role !== 'TASK_ASSIGNEE' && !ProjectPolicy.canRead(this.tenant)) {
       throw new ForbiddenError('Cannot read projects');
     }
 

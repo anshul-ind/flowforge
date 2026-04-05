@@ -20,6 +20,7 @@ describe('Integration: Task Lifecycle Workflow', () => {
   beforeEach(() => {
     mockTenant = {
       workspaceId: 'ws-test',
+      organizationId: 'org-test',
       userId: 'user-1',
       role: 'OWNER',
     } as TenantContext;
@@ -138,12 +139,14 @@ describe('Integration: Approval Workflow', () => {
   beforeEach(() => {
     mockTenant = {
       workspaceId: 'ws-test',
+      organizationId: 'org-test',
       userId: 'user-1',
       role: 'MEMBER',
     } as TenantContext;
 
     reviewerTenant = {
       workspaceId: 'ws-test',
+      organizationId: 'org-test',
       userId: 'user-2',
       role: 'MANAGER',
     } as TenantContext;
@@ -217,12 +220,14 @@ describe('Integration: Permission Boundaries', () => {
   beforeEach(() => {
     mockOwner = {
       workspaceId: 'ws-test',
+      organizationId: 'org-test',
       userId: 'owner-1',
       role: 'OWNER',
     } as TenantContext;
 
     mockMember = {
       workspaceId: 'ws-test',
+      organizationId: 'org-test',
       userId: 'member-1',
       role: 'MEMBER',
     } as TenantContext;

@@ -18,6 +18,7 @@ describe('TaskService', () => {
   beforeEach(() => {
     mockTenant = {
       workspaceId: 'ws-123',
+      organizationId: 'org-123',
       userId: 'user-123',
       role: 'MEMBER',
     } as TenantContext;

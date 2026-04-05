@@ -156,18 +156,26 @@ export class WorkspaceRepository {
    * Creator is automatically added as OWNER
    */
   static async create(name: string, slug: string, creatorId: string): Promise<Workspace> {
-    // Create workspace and member in transaction to ensure consistency
+    const orgSlug = `org-${slug}`
+
     const workspace = await prisma.$transaction(async (tx) => {
-      // 1. Create workspace
+      const org = await tx.organization.create({
+        data: {
+          name,
+          slug: orgSlug,
+          createdById: creatorId,
+        },
+      })
+
       const ws = await tx.workspace.create({
         data: {
           name,
           slug,
           createdById: creatorId,
+          organizationId: org.id,
         },
-      });
+      })
 
-      // 2. Add creator as OWNER member
       await tx.workspaceMember.create({
         data: {
           userId: creatorId,
@@ -175,12 +183,21 @@ export class WorkspaceRepository {
           role: 'OWNER',
           status: 'ACTIVE',
         },
-      });
+      })
 
-      return ws;
-    });
+      await tx.organizationMember.create({
+        data: {
+          userId: creatorId,
+          organizationId: org.id,
+          role: 'ORG_ADMIN',
+          status: 'ACTIVE',
+        },
+      })
 
-    return workspace;
+      return ws
+    })
+
+    return workspace
   }
 
   /**

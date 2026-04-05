@@ -6,6 +6,11 @@ import { cn } from '@/lib/utils'
 
 type Mode = 'email' | 'link'
 
+export type InviteFormProject = { id: string; title: string }
+export type InviteFormTask = { id: string; title: string; projectId: string }
+
+type Scope = 'workspace' | 'project' | 'task'
+
 function fieldHint(
   details: { fieldErrors?: Record<string, string[] | undefined> } | undefined
 ): string | null {
@@ -14,14 +19,26 @@ function fieldHint(
   return parts.length ? parts.join(' · ') : null
 }
 
-export function WorkspaceInviteForm({ workspaceId }: { workspaceId: string }) {
+export function WorkspaceInviteForm({
+  workspaceId,
+  projects,
+  tasks,
+}: {
+  workspaceId: string
+  projects: InviteFormProject[]
+  tasks: InviteFormTask[]
+}) {
   const [state, formAction, pending] = useActionState(createWorkspaceInviteAction, null)
   const [mode, setMode] = useState<Mode>('email')
+  const [scope, setScope] = useState<Scope>('workspace')
+
+  const projectTitle = (pid: string) => projects.find((p) => p.id === pid)?.title ?? 'Project'
 
   return (
     <form action={formAction} className="max-w-xl space-y-6">
       <input type="hidden" name="workspaceId" value={workspaceId} />
       <input type="hidden" name="mode" value={mode} />
+      <input type="hidden" name="inviteScope" value={scope} />
 
       <div className="flex gap-2 rounded-lg border border-gray-200 p-1 bg-gray-50">
         <button
@@ -50,6 +67,81 @@ export function WorkspaceInviteForm({ workspaceId }: { workspaceId: string }) {
         </button>
       </div>
 
+      <div>
+        <p className="text-sm font-medium text-gray-700">Access scope</p>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Workspace = full member. Project = that project only. Task = assignee-style access to one task.
+        </p>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {(['workspace', 'project', 'task'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setScope(s)}
+              className={cn(
+                'rounded-md border px-3 py-2 text-sm font-medium capitalize',
+                scope === s
+                  ? 'border-gray-900 bg-gray-900 text-white'
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+              )}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {scope === 'project' && (
+        <div>
+          <label htmlFor="invite-project" className="block text-sm font-medium text-gray-700">
+            Project
+          </label>
+          <select
+            id="invite-project"
+            name="projectId"
+            required
+            disabled={pending}
+            defaultValue=""
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
+          >
+            <option value="" disabled>
+              Select a project
+            </option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {scope === 'task' && (
+        <div>
+          <label htmlFor="invite-task" className="block text-sm font-medium text-gray-700">
+            Task
+          </label>
+          <select
+            id="invite-task"
+            name="taskId"
+            required
+            disabled={pending}
+            defaultValue=""
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
+          >
+            <option value="" disabled>
+              Select a task
+            </option>
+            {tasks.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title} — {projectTitle(t.projectId)}
+              </option>
+            ))}
+          </select>
+          <input type="hidden" name="role" value="TASK_ASSIGNEE" />
+        </div>
+      )}
+
       {mode === 'email' && (
         <div>
           <label htmlFor="invite-email" className="block text-sm font-medium text-gray-700">
@@ -67,22 +159,25 @@ export function WorkspaceInviteForm({ workspaceId }: { workspaceId: string }) {
         </div>
       )}
 
-      <div>
-        <label htmlFor="invite-role" className="block text-sm font-medium text-gray-700">
-          Role
-        </label>
-        <select
-          id="invite-role"
-          name="role"
-          defaultValue="MEMBER"
-          disabled={pending}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
-        >
-          <option value="VIEWER">Viewer</option>
-          <option value="MEMBER">Member</option>
-          <option value="MANAGER">Manager</option>
-        </select>
-      </div>
+      {scope !== 'task' && (
+        <div>
+          <label htmlFor="invite-role" className="block text-sm font-medium text-gray-700">
+            Role
+          </label>
+          <select
+            id="invite-role"
+            name="role"
+            defaultValue="MEMBER"
+            disabled={pending}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
+          >
+            <option value="VIEWER">Viewer</option>
+            <option value="MEMBER">Member</option>
+            <option value="MANAGER">Manager</option>
+            <option value="TASK_ASSIGNEE">Task assignee (workspace-wide)</option>
+          </select>
+        </div>
+      )}
 
       {!state?.ok && state?.error && (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">

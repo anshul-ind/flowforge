@@ -21,6 +21,7 @@ describe('ProjectService', () => {
     // Setup mock tenant
     mockTenant = {
       workspaceId: 'ws-123',
+      organizationId: 'org-123',
       userId: 'user-123',
       role: 'OWNER',
     } as TenantContext;

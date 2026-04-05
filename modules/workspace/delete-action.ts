@@ -6,8 +6,6 @@ import { WorkspaceService } from '@/modules/workspace/service';
 import { deleteWorkspaceSchema } from '@/modules/workspace/schemas';
 import { ActionResult } from '@/types/action-result';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/errors';
-import { TenantContext } from '@/lib/tenant/tenant-context';
-
 /**
  * Delete workspace
  * 
@@ -46,21 +44,13 @@ export async function deleteWorkspaceAction(
       };
     }
 
-    // Resolve tenant (validates workspace access)
-    const tenantData = await resolveTenantContext(workspaceId, session.user.id);
-    if (!tenantData) {
+    const tenant = await resolveTenantContext(workspaceId, session.user.id);
+    if (!tenant) {
       return {
         success: false,
         message: 'Workspace not found or you do not have access',
       };
     }
-
-    // Create tenant context for service
-    const tenant: TenantContext = {
-      workspaceId: tenantData.workspaceId,
-      userId: tenantData.userId,
-      role: tenantData.role,
-    };
 
     // Validate confirmat input
     const parsed = deleteWorkspaceSchema.safeParse(input);

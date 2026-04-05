@@ -7,8 +7,6 @@ import { updateMemberRoleSchema } from '@/modules/workspace/schemas';
 import { ActionResult } from '@/types/action-result';
 import { WorkspaceMember } from '@/lib/generated/prisma';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/errors';
-import { TenantContext } from '@/lib/tenant/tenant-context';
-
 /**
  * Update member role in workspace
  * 
@@ -45,21 +43,13 @@ export async function updateMemberRoleAction(
       };
     }
 
-    // Resolve tenant (validates workspace access)
-    const tenantData = await resolveTenantContext(workspaceId, session.user.id);
-    if (!tenantData) {
+    const tenant = await resolveTenantContext(workspaceId, session.user.id);
+    if (!tenant) {
       return {
         success: false,
         message: 'Workspace not found or you do not have access',
       };
     }
-
-    // Create tenant context for service
-    const tenant: TenantContext = {
-      workspaceId: tenantData.workspaceId,
-      userId: tenantData.userId,
-      role: tenantData.role,
-    };
 
     // Validate input
     const parsed = updateMemberRoleSchema.safeParse(input);

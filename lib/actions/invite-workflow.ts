@@ -1,48 +1,21 @@
 'use server'
 
-import { randomUUID } from 'crypto'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/db'
-import { requireWorkspaceMember } from '@/lib/workspace'
-import { canInvite } from '@/lib/permissions'
+import { requireInvitePermission, requireWorkspaceAccess } from '@/lib/authz'
 import { inviteMemberSchema } from '@/lib/validation/invite'
 import { sendInviteEmail, isMailConfigured } from '@/lib/mail'
 import { createAuditLog } from '@/lib/audit'
 import { createNotification } from '@/lib/notifications'
 import { inviteLimiter } from '@/lib/rate-limiting/rate-limiter'
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
 import { ForbiddenError } from '@/lib/errors'
-
-const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7
-
-async function appBaseUrl(): Promise<string> {
-  // Prefer explicit env config when provided (common in production/hosting).
-  const baseFromEnv = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '')
-  if (baseFromEnv) return baseFromEnv
-
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-
-  // Server Actions run inside a request context; derive the public origin from headers.
-  // This prevents invite emails from hardcoding `localhost` when env vars are missing.
-  const h = await headers()
-  const origin = h.get('origin')?.trim()
-  if (origin) return origin.replace(/\/$/, '')
-
-  const proto =
-    h.get('x-forwarded-proto')?.split(',')[0]?.trim() ||
-    h.get('x-forwarded-protocol')?.split(',')[0]?.trim() ||
-    'http'
-  const host =
-    h.get('x-forwarded-host')?.split(',')[0]?.trim() ||
-    h.get('host')?.trim()
-
-  if (host) return `${proto}://${host}`.replace(/\/$/, '')
-
-  // Dev fallback (only used when we cannot infer origin).
-  console.warn('[invite-workflow] Could not determine app base URL; using localhost fallback')
-  return 'http://localhost:3000'
-}
+import { resolveAppBaseUrl } from '@/lib/invite/app-base-url'
+import { OrganizationRepository } from '@/modules/organization/repository'
+import { InviteService } from '@/modules/invite/service'
+import { buildInviteAcceptUrl } from '@/modules/invite/build-invite-url'
+import { MembershipRepository } from '@/modules/membership/repository'
+import { computeInviteAcceptNextPath } from '@/lib/invite/post-accept-redirect'
 
 type InviteActionState =
   | { ok: true; inviteUrl: string; emailSent?: boolean; emailError?: string }
@@ -51,6 +24,29 @@ type InviteActionState =
       error: string
       details?: { fieldErrors: Record<string, string[] | undefined> }
     }
+
+async function assertInviteResources(
+  workspaceId: string,
+  scope: 'workspace' | 'project' | 'task',
+  projectId?: string,
+  taskId?: string
+): Promise<string | null> {
+  if (scope === 'project' && projectId) {
+    const p = await prisma.project.findFirst({
+      where: { id: projectId, workspaceId },
+      select: { id: true },
+    })
+    if (!p) return 'That project is not in this workspace.'
+  }
+  if (scope === 'task' && taskId) {
+    const t = await prisma.task.findFirst({
+      where: { id: taskId, workspaceId },
+      select: { id: true },
+    })
+    if (!t) return 'That task is not in this workspace.'
+  }
+  return null
+}
 
 export async function createWorkspaceInviteAction(
   _prev: unknown,
@@ -63,10 +59,13 @@ export async function createWorkspaceInviteAction(
     }
 
     const parsed = inviteMemberSchema.safeParse({
-      workspaceId: formData.get('workspaceId'),
+      workspaceId: formData.get('workspaceId') ?? undefined,
       email: formData.get('email') ?? undefined,
-      role: formData.get('role'),
-      mode: formData.get('mode'),
+      role: formData.get('role') ?? undefined,
+      mode: formData.get('mode') ?? undefined,
+      inviteScope: formData.get('inviteScope') ?? undefined,
+      projectId: formData.get('projectId') ?? undefined,
+      taskId: formData.get('taskId') ?? undefined,
     })
 
     if (!parsed.success) {
@@ -78,38 +77,54 @@ export async function createWorkspaceInviteAction(
       }
     }
 
-    const { workspaceId, email, role, mode } = parsed.data
+    const { workspaceId, email, role, mode, inviteScope, projectId, taskId } = parsed.data
     const normalizedEmail = email?.toLowerCase().trim()
 
-    const membership = await requireWorkspaceMember(session.user.id, workspaceId)
-    if (!canInvite(membership.role)) {
-      return { ok: false, error: 'You do not have permission to invite members' }
+    const resourceErr = await assertInviteResources(
+      workspaceId,
+      inviteScope,
+      projectId,
+      taskId
+    )
+    if (resourceErr) {
+      return { ok: false, error: resourceErr }
     }
 
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-    })
+    let storeProjectId: string | null = null
+    let storeTaskId: string | null = null
+    let workspaceRole = role
+    if (inviteScope === 'workspace') {
+      storeProjectId = null
+      storeTaskId = null
+    } else if (inviteScope === 'project') {
+      storeProjectId = projectId ?? null
+      storeTaskId = null
+    } else {
+      storeTaskId = taskId ?? null
+      storeProjectId = null
+      workspaceRole = 'TASK_ASSIGNEE'
+    }
+
+    try {
+      requireInvitePermission(
+        await requireWorkspaceAccess(session.user.id, workspaceId)
+      )
+    } catch (e) {
+      if (e instanceof ForbiddenError) {
+        return { ok: false, error: e.message }
+      }
+      throw e
+    }
+
+    const workspace = await OrganizationRepository.findWorkspaceTenantSummary(workspaceId)
     if (!workspace) {
       return { ok: false, error: 'Workspace not found' }
     }
 
-    if (mode === 'email' && normalizedEmail) {
-      const existingUser = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
-        select: { id: true },
-      })
-      if (existingUser) {
-        const already = await prisma.workspaceMember.findUnique({
-          where: {
-            userId_workspaceId: {
-              userId: existingUser.id,
-              workspaceId,
-            },
-          },
-        })
-        if (already?.status === 'ACTIVE') {
-          return { ok: false, error: 'This user is already an active member' }
-        }
+    if (mode === 'email' && normalizedEmail && inviteScope === 'workspace') {
+      const conflict = await InviteService.hasActiveWorkspaceMember(normalizedEmail, workspaceId)
+      if (conflict) {
+        return { ok: false, error: 'This user is already an active member' }
       }
     }
 
@@ -121,31 +136,50 @@ export async function createWorkspaceInviteAction(
       }
     }
 
-    const token = randomUUID()
-    const expiresAt = new Date(Date.now() + INVITE_TTL_MS)
+    const inviteEmail = mode === 'email' && normalizedEmail ? normalizedEmail : ''
 
-    const invite = await prisma.workspaceInvite.create({
-      data: {
-        workspaceId,
-        email: mode === 'email' ? normalizedEmail ?? null : null,
-        role,
-        token,
-        invitedById: session.user.id,
-        expiresAt,
-      },
+    const { invite, rawToken } = await InviteService.createWorkspaceInvite({
+      workspaceId,
+      organizationId: workspace.organizationId,
+      invitedByUserId: session.user.id,
+      workspaceRole,
+      email: inviteEmail,
+      projectId: storeProjectId,
+      taskId: storeTaskId,
     })
 
-    const inviteUrl = `${await appBaseUrl()}/invite/${invite.token}`
+    const inviteUrl = buildInviteAcceptUrl(await resolveAppBaseUrl(), rawToken)
 
     let emailSent: boolean | undefined
     let emailError: string | undefined
+
+    let emailScopeNote: string | undefined
+    if (inviteScope === 'task' && storeTaskId) {
+      const t = await prisma.task.findFirst({
+        where: { id: storeTaskId, workspaceId },
+        select: { title: true },
+      })
+      if (t) {
+        emailScopeNote = `This invitation is scoped to the task "${t.title}".`
+      }
+    } else if (inviteScope === 'project' && storeProjectId) {
+      const p = await prisma.project.findFirst({
+        where: { id: storeProjectId, workspaceId },
+        select: { title: true },
+      })
+      if (p) {
+        emailScopeNote = `This invitation is scoped to the project "${p.title}".`
+      }
+    }
 
     if (mode === 'email' && normalizedEmail) {
       if (!isMailConfigured()) {
         emailSent = false
         emailError = 'Email was not sent — configure SMTP or share the link manually.'
       } else {
-        const sent = await sendInviteEmail(normalizedEmail, inviteUrl, workspace.name)
+        const sent = await sendInviteEmail(normalizedEmail, inviteUrl, workspace.name, {
+          scopeNote: emailScopeNote,
+        })
         if (sent.ok) {
           emailSent = true
         } else {
@@ -159,18 +193,22 @@ export async function createWorkspaceInviteAction(
       workspaceId,
       userId: session.user.id,
       action: 'MEMBER_INVITED',
-      entityType: 'workspace_invite',
+      entityType: 'invite',
       entityId: invite.id,
       details: JSON.stringify({
         mode,
         email: normalizedEmail ?? null,
-        role,
+        role: workspaceRole,
+        inviteScope,
+        projectId: storeProjectId,
+        taskId: storeTaskId,
         emailSent: emailSent ?? null,
       }),
     })
 
     revalidatePath(`/workspace/${workspaceId}/members`)
     revalidatePath(`/workspace/${workspaceId}/members/invite`)
+    revalidatePath(`/workspace/${workspaceId}/invitations`)
 
     return {
       ok: true,
@@ -199,7 +237,7 @@ async function resolveSessionEmail(userId: string, sessionEmail?: string | null)
 export async function acceptInviteByToken(
   token: string
 ): Promise<
-  | { ok: true; workspaceId: string; alreadyMember?: boolean }
+  | { ok: true; workspaceId: string; nextPath: string; alreadyMember?: boolean }
   | { ok: false; error: string }
 > {
   const session = await auth()
@@ -212,114 +250,132 @@ export async function acceptInviteByToken(
     return { ok: false, error: 'Your account has no email on file' }
   }
 
-  const invite = await prisma.workspaceInvite.findUnique({
-    where: { token },
-    include: { workspace: true },
+  const result = await InviteService.acceptWorkspaceInvite({
+    rawToken: token,
+    userId: session.user.id,
+    userEmailNormalized: userEmail,
   })
 
+  if (!result.ok) {
+    return result
+  }
+
+  const {
+    workspaceId,
+    alreadyMember,
+    scopeOnlyProvisioned,
+    inviteId,
+    workspaceName,
+    roleApplied,
+    inviteProjectId,
+    inviteTaskId,
+  } = result
+
+  const nextPath = await computeInviteAcceptNextPath(
+    workspaceId,
+    inviteProjectId,
+    inviteTaskId
+  )
+
+  if (!alreadyMember || scopeOnlyProvisioned) {
+    await createAuditLog({
+      workspaceId,
+      userId: session.user.id,
+      action: 'INVITE_ACCEPTED',
+      entityType: 'invite',
+      entityId: inviteId,
+      details: JSON.stringify({
+        role: roleApplied,
+        scopeOnly: scopeOnlyProvisioned ?? false,
+      }),
+    })
+
+    const managers = await MembershipRepository.listActiveManagerUserIds(workspaceId)
+    const notifyIds = new Set(managers.map((m) => m.userId))
+    notifyIds.delete(session.user.id)
+
+    const joinedMsg = scopeOnlyProvisioned
+      ? `${userEmail} accepted a scoped invitation in ${workspaceName ?? 'the workspace'}`
+      : `${userEmail} joined ${workspaceName ?? 'the workspace'}`
+
+    await Promise.all(
+      [...notifyIds].map((userId) =>
+        createNotification({
+          userId,
+          workspaceId,
+          type: 'INVITE_ACCEPTED',
+          message: joinedMsg,
+          entityType: 'workspace',
+          entityId: workspaceId,
+        })
+      )
+    )
+  }
+
+  revalidatePath('/workspace')
+  revalidatePath(`/workspace/${workspaceId}`)
+  revalidatePath(`/workspace/${workspaceId}/members`)
+
+  return { ok: true, workspaceId, nextPath, alreadyMember }
+}
+
+export type RevokeInviteState =
+  | { ok: true }
+  | { ok: false; error: string }
+
+export async function revokeWorkspaceInviteAction(
+  _prev: RevokeInviteState | null,
+  formData: FormData
+): Promise<RevokeInviteState> {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return { ok: false, error: 'Unauthorized' }
+  }
+
+  const workspaceId = String(formData.get('workspaceId') ?? '').trim()
+  const inviteId = String(formData.get('inviteId') ?? '').trim()
+  if (!workspaceId || !inviteId) {
+    return { ok: false, error: 'Missing workspace or invitation' }
+  }
+
+  try {
+    requireInvitePermission(await requireWorkspaceAccess(session.user.id, workspaceId))
+  } catch (e) {
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message }
+    }
+    throw e
+  }
+
+  const invite = await prisma.workspaceInvite.findFirst({
+    where: { id: inviteId, workspaceId },
+  })
   if (!invite) {
-    return { ok: false, error: 'Invalid or expired invitation' }
+    return { ok: false, error: 'Invitation not found' }
+  }
+  if (invite.status !== 'PENDING') {
+    return { ok: false, error: 'Only pending invitations can be revoked' }
+  }
+  if (invite.revokedAt) {
+    return { ok: false, error: 'This invitation was already revoked' }
   }
 
-  if (invite.acceptedAt) {
-    return { ok: true, workspaceId: invite.workspaceId, alreadyMember: true }
-  }
-
-  if (invite.expiresAt < new Date()) {
-    return { ok: false, error: 'This invitation has expired' }
-  }
-
-  if (invite.email && invite.email.toLowerCase() !== userEmail) {
-    return {
-      ok: false,
-      error: 'This invitation was sent to a different email address',
-    }
-  }
-
-  const existing = await prisma.workspaceMember.findUnique({
-    where: {
-      userId_workspaceId: {
-        userId: session.user.id,
-        workspaceId: invite.workspaceId,
-      },
-    },
-  })
-
-  if (existing?.status === 'ACTIVE') {
-    await prisma.workspaceInvite.update({
-      where: { id: invite.id },
-      data: { acceptedAt: new Date() },
-    })
-    return { ok: true, workspaceId: invite.workspaceId, alreadyMember: true }
-  }
-
-  if (existing?.status === 'SUSPENDED') {
-    return { ok: false, error: 'Your access to this workspace is suspended' }
-  }
-
-  await prisma.$transaction(async (tx) => {
-    if (existing) {
-      await tx.workspaceMember.update({
-        where: { id: existing.id },
-        data: {
-          status: 'ACTIVE',
-          role: existing.role === 'OWNER' ? existing.role : invite.role,
-        },
-      })
-    } else {
-      await tx.workspaceMember.create({
-        data: {
-          workspaceId: invite.workspaceId,
-          userId: session.user.id,
-          role: invite.role,
-          status: 'ACTIVE',
-        },
-      })
-    }
-
-    await tx.workspaceInvite.update({
-      where: { id: invite.id },
-      data: { acceptedAt: new Date() },
-    })
+  await prisma.workspaceInvite.update({
+    where: { id: inviteId },
+    data: { status: 'REVOKED', revokedAt: new Date() },
   })
 
   await createAuditLog({
-    workspaceId: invite.workspaceId,
+    workspaceId,
     userId: session.user.id,
-    action: 'INVITE_ACCEPTED',
-    entityType: 'workspace_invite',
-    entityId: invite.id,
-    details: JSON.stringify({ role: invite.role }),
+    action: 'INVITE_REVOKED',
+    entityType: 'invite',
+    entityId: inviteId,
+    details: JSON.stringify({ email: invite.email }),
   })
 
-  const managers = await prisma.workspaceMember.findMany({
-    where: {
-      workspaceId: invite.workspaceId,
-      role: { in: ['OWNER', 'MANAGER'] },
-      status: 'ACTIVE',
-    },
-    select: { userId: true },
-  })
+  revalidatePath(`/workspace/${workspaceId}/invitations`)
+  revalidatePath(`/workspace/${workspaceId}/members`)
 
-  const notifyIds = new Set(managers.map((m) => m.userId))
-  notifyIds.delete(session.user.id)
-
-  await Promise.all(
-    [...notifyIds].map((userId) =>
-      createNotification({
-        userId,
-        workspaceId: invite.workspaceId,
-        type: 'INVITE_ACCEPTED',
-        message: `${userEmail} joined ${invite.workspace.name}`,
-        entityType: 'workspace',
-        entityId: invite.workspaceId,
-      })
-    )
-  )
-
-  revalidatePath('/workspace')
-  revalidatePath(`/workspace/${invite.workspaceId}`)
-  revalidatePath(`/workspace/${invite.workspaceId}/members`)
-
-  return { ok: true, workspaceId: invite.workspaceId }
+  return { ok: true }
 }

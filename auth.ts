@@ -1,13 +1,34 @@
 import NextAuth from "next-auth";
+import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { signinLimiter } from "@/lib/rate-limiting/rate-limiter";
+import { WorkspaceRepository } from "@/modules/workspace/repository";
+
+const googleClientId =
+  process.env.AUTH_GOOGLE_ID?.trim() || process.env.GOOGLE_ID?.trim() || '';
+const googleClientSecret =
+  process.env.AUTH_GOOGLE_SECRET?.trim() || process.env.GOOGLE_SECRET?.trim() || '';
+const googleConfigured = Boolean(googleClientId && googleClientSecret);
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   providers: [
+    ...(googleConfigured
+      ? [
+          Google({
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
+            authorization: {
+              params: {
+                prompt: "select_account",
+              },
+            },
+          }),
+        ]
+      : []),
     Credentials({
       name: "Credentials",
       credentials: {
@@ -19,10 +40,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        // Rate limiting: 5 attempts per 15 minutes per email
         const limitResult = signinLimiter.check(credentials.email as string);
         if (!limitResult.allowed) {
-          // Treat as failed auth attempt
           console.warn(`[Auth] Rate limit exceeded for email: ${credentials.email}`);
           return null;
         }
@@ -79,7 +98,38 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account, profile }) {
+      if (account?.provider === "google" && profile && "email" in profile && profile.email) {
+        const email = String(profile.email).toLowerCase();
+        const name = typeof profile.name === "string" ? profile.name : null;
+
+        const dbUser = await prisma.user.upsert({
+          where: { email },
+          create: {
+            email,
+            name: name ?? undefined,
+            emailVerified: new Date(),
+          },
+          update: {
+            name: name ?? undefined,
+            emailVerified: new Date(),
+          },
+          select: { id: true },
+        });
+
+        const workspaceCount = await prisma.workspaceMember.count({
+          where: { userId: dbUser.id, status: "ACTIVE" },
+        });
+        if (workspaceCount === 0) {
+          const wsName = name ? `${name}'s Workspace` : "My Workspace";
+          await WorkspaceRepository.create(wsName, `${dbUser.id}-personal`, dbUser.id);
+        }
+
+        token.id = dbUser.id;
+        token.email = email;
+        return token;
+      }
+
       if (user) {
         token.id = user.id;
         if (user.email) token.email = user.email;

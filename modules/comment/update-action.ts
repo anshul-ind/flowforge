@@ -1,8 +1,7 @@
 'use server';
 
 import { auth } from '@/auth';
-import { prisma } from '@/lib/db';
-import { resolveTenantContext } from '@/lib/tenant/resolve-tenant';
+import { resolveTenantFromCommentId } from '@/modules/comment/resolve-tenant-from-comment';
 import { updateCommentSchema } from '@/modules/comment/schemas';
 import { CommentService } from '@/modules/comment/service';
 import { ActionResult } from '@/types/action-result';
@@ -31,26 +30,15 @@ export async function updateCommentAction(input: unknown): Promise<ActionResult<
       };
     }
 
-    const workspaceMembership = await prisma.workspaceMember.findFirst({
-      where: { userId: session.user.id },
-    });
-
-    if (!workspaceMembership) {
-      return {
-        success: false,
-        message: 'Not a workspace member',
-      };
-    }
-
-    const tenant = await resolveTenantContext(
-      workspaceMembership.workspaceId,
-      session.user.id
+    const tenant = await resolveTenantFromCommentId(
+      session.user.id,
+      parsed.data.commentId
     );
 
     if (!tenant) {
       return {
         success: false,
-        message: 'Cannot access workspace',
+        message: 'Comment not found or workspace access denied',
       };
     }
 

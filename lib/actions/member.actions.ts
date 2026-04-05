@@ -133,5 +133,6 @@ export async function acceptInviteAction(input: AcceptInviteInput) {
     success: true as const,
     message: 'Welcome to the workspace!',
     workspaceId: result.workspaceId,
+    nextPath: result.nextPath,
   };
 }

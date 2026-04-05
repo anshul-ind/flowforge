@@ -121,6 +121,12 @@ export const signinLimiter = new RateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
 });
 
+/** Sign-up attempts per normalized email (reduces scripted account creation). */
+export const signupLimiter = new RateLimiter({
+  maxAttempts: 10,
+  windowMs: 60 * 60 * 1000, // 1 hour
+});
+
 export const inviteLimiter = new RateLimiter({
   maxAttempts: 20,
   windowMs: 60 * 60 * 1000, // 1 hour

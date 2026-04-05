@@ -84,10 +84,11 @@ export function assertWorkspaceRole(
   minimumRole: WorkspaceRole
 ): void {
   const rank: Record<WorkspaceRole, number> = {
-    OWNER: 4,
-    MANAGER: 3,
-    MEMBER: 2,
-    VIEWER: 1,
+    OWNER: 5,
+    MANAGER: 4,
+    MEMBER: 3,
+    VIEWER: 2,
+    TASK_ASSIGNEE: 1,
   };
   if (rank[role] < rank[minimumRole]) {
     throw new WorkspaceMemberRequiredError('Insufficient workspace role');

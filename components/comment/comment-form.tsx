@@ -17,6 +17,7 @@ interface WorkspaceMember {
 }
 
 interface CommentFormProps {
+  workspaceId: string;
   taskId: string;
   commentId?: string;
   initialContent?: string;
@@ -28,6 +29,7 @@ interface CommentFormProps {
 }
 
 export function CommentForm({
+  workspaceId,
   taskId,
   commentId,
   initialContent = '',
@@ -140,6 +142,7 @@ export function CommentForm({
           });
         } else {
           result = await createCommentAction({
+            workspaceId,
             taskId,
             content,
           });

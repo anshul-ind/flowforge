@@ -18,7 +18,7 @@ export function InviteAcceptForm({ token }: { token: string }) {
     if (handled.current) return
     if (state?.ok === true) {
       handled.current = true
-      router.push(`/workspace/${state.workspaceId}`)
+      router.push(state.nextPath)
       router.refresh()
     }
   }, [state, router])

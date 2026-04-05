@@ -1,5 +1,6 @@
 import { prisma } from './db'
 import { ForbiddenError, NotFoundError } from './errors'
+import { hashInviteToken } from '@/lib/invite/token-hash'
 
 /**
  * Verify user is a member of the workspace
@@ -66,7 +67,7 @@ export async function canUserPerformAction(
     return false
   }
 
-  const roleHierarchy = { OWNER: 4, MANAGER: 3, MEMBER: 2, VIEWER: 1 }
+  const roleHierarchy = { OWNER: 5, MANAGER: 4, MEMBER: 3, VIEWER: 2, TASK_ASSIGNEE: 1 }
   const userRoleLevel = roleHierarchy[membership.role] || 0
   const requiredRoleLevel = roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0
 
@@ -80,8 +81,9 @@ export async function getPendingInvites(workspaceId: string) {
   return prisma.workspaceInvite.findMany({
     where: {
       workspaceId,
-      acceptedAt: null,
+      status: 'PENDING',
       expiresAt: { gt: new Date() },
+      revokedAt: null,
     },
   })
 }
@@ -91,7 +93,7 @@ export async function getPendingInvites(workspaceId: string) {
  */
 export async function validateInviteToken(token: string) {
   const invite = await prisma.workspaceInvite.findUnique({
-    where: { token },
+    where: { tokenHash: hashInviteToken(token.trim()) },
     include: { workspace: true },
   })
 
@@ -99,12 +101,20 @@ export async function validateInviteToken(token: string) {
     throw new NotFoundError('Invite not found')
   }
 
-  if (invite.acceptedAt) {
+  if (invite.status === 'REVOKED') {
+    throw new ForbiddenError('This invite has been revoked')
+  }
+
+  if (invite.status === 'ACCEPTED' || invite.acceptedAt) {
     throw new ForbiddenError('This invite has already been accepted')
   }
 
-  if (invite.expiresAt < new Date()) {
+  if (invite.status === 'EXPIRED' || invite.expiresAt < new Date()) {
     throw new ForbiddenError('This invite has expired')
+  }
+
+  if (invite.status !== 'PENDING') {
+    throw new ForbiddenError('This invite is not valid')
   }
 
   return invite

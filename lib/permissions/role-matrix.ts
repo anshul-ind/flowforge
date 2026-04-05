@@ -182,6 +182,23 @@ export const roleMatrix: Record<
     [Resource.COMMENT]: new Set([Action.READ_COMMENT]),
     [Resource.APPROVAL]: new Set([Action.READ_APPROVAL]),
   },
+
+  /**
+   * Task collaborator: workspace shell + assigned tasks only.
+   * Project list/detail and broad task lists are enforced in ProjectService / TaskRepository.
+   */
+  TASK_ASSIGNEE: {
+    [Resource.WORKSPACE]: new Set([Action.READ_WORKSPACE]),
+    [Resource.PROJECT]: new Set([]),
+    [Resource.TASK]: new Set([Action.READ_TASK, Action.UPDATE_TASK]),
+    [Resource.COMMENT]: new Set([
+      Action.CREATE_COMMENT,
+      Action.READ_COMMENT,
+      Action.UPDATE_OWN_COMMENT,
+      Action.DELETE_OWN_COMMENT,
+    ]),
+    [Resource.APPROVAL]: new Set([Action.CREATE_APPROVAL, Action.READ_APPROVAL]),
+  },
 };
 
 /**

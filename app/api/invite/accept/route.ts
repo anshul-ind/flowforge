@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
     const session = await auth();
     if (!session?.user?.id) {
       const signIn = new URL('/sign-in', request.url);
-      signIn.searchParams.set('callbackUrl', `/invite/${token}`);
+      signIn.searchParams.set(
+        'callbackUrl',
+        `/invite/accept?token=${encodeURIComponent(token)}`
+      );
       return NextResponse.redirect(signIn);
     }
 
@@ -26,9 +29,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    return NextResponse.redirect(
-      new URL(`/workspace/${result.workspaceId}`, request.url)
-    );
+    return NextResponse.redirect(new URL(result.nextPath, request.url));
   } catch (error) {
     console.error('[GET /api/invite/accept]', error);
     return NextResponse.json(

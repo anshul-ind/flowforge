@@ -85,7 +85,12 @@ export async function getWorkspaceAnalyticsSnapshot(
       _count: { _all: true },
     }),
     prisma.workspaceInvite.count({
-      where: { workspaceId, acceptedAt: null, expiresAt: { gt: new Date() } },
+      where: {
+        workspaceId,
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+        revokedAt: null,
+      },
     }),
     prisma.workspaceMember.count({
       where: { workspaceId, status: MemberStatus.ACTIVE },

@@ -76,6 +76,7 @@ export class CommentRepository {
         id: data.taskId,
         workspaceId: this.tenant.workspaceId,
       },
+      select: { id: true, projectId: true },
     });
 
     if (!task) {
@@ -88,6 +89,7 @@ export class CommentRepository {
         body: data.content,
         authorId: this.tenant.userId,
         workspaceId: this.tenant.workspaceId,
+        projectId: task.projectId,
       },
     });
   }

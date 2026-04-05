@@ -4,6 +4,7 @@ import type { ActionResult } from '@/types/action-result';
 import { fieldErrorsResult, errorResult } from '@/types/action-result';
 import { AuthService } from '@/modules/auth/service';
 import { signUpSchema } from '@/modules/auth/schemas';
+import { signupLimiter } from '@/lib/rate-limiting/rate-limiter';
 
 /**
  * Sign Up Server Action
@@ -53,6 +54,11 @@ export async function signUp(
       }
 
       return fieldErrorsResult(fieldErrors, 'Validation failed');
+    }
+
+    const signupLimit = signupLimiter.check(`signup:${validationResult.data.email}`);
+    if (!signupLimit.allowed) {
+      return errorResult('Too many sign-up attempts for this email. Try again later.');
     }
 
     // Call auth service to create user with userType

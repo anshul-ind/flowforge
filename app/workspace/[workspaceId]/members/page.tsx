@@ -41,12 +41,20 @@ export default async function MembersPage({
           </p>
         </div>
         {canInvite(tenant.role) && (
-          <Link
-            href={`/workspace/${workspaceId}/members/invite`}
-            className="inline-flex items-center justify-center rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900"
-          >
-            Invite people
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/workspace/${workspaceId}/invitations`}
+              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+            >
+              Pending invitations
+            </Link>
+            <Link
+              href={`/workspace/${workspaceId}/members/invite`}
+              className="inline-flex items-center justify-center rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+            >
+              Invite people
+            </Link>
+          </div>
         )}
       </div>
 

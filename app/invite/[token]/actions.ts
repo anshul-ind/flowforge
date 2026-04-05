@@ -5,7 +5,7 @@ import { acceptInviteByToken } from '@/lib/actions/invite-workflow'
 export type JoinInviteState =
   | null
   | { ok: false; error: string }
-  | { ok: true; workspaceId: string }
+  | { ok: true; workspaceId: string; nextPath: string }
 
 export async function joinWorkspaceFromInviteAction(
   _prev: JoinInviteState,
@@ -21,5 +21,5 @@ export async function joinWorkspaceFromInviteAction(
     return { ok: false, error: result.error }
   }
 
-  return { ok: true, workspaceId: result.workspaceId }
+  return { ok: true, workspaceId: result.workspaceId, nextPath: result.nextPath }
 }

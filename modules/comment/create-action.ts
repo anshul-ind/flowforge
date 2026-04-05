@@ -1,7 +1,6 @@
 'use server';
 
 import { auth } from '@/auth';
-import { prisma } from '@/lib/db';
 import { resolveTenantContext } from '@/lib/tenant/resolve-tenant';
 import { createCommentSchema } from '@/modules/comment/schemas';
 import { CommentService } from '@/modules/comment/service';
@@ -52,30 +51,15 @@ export async function createCommentAction(input: unknown): Promise<ActionResult<
       };
     }
 
-    // Resolve tenant context for current workspace
-    // Note: In a real app, workspaceId would come from route params
-    // For now, we get it from user's workspace membership
-    const workspaceMembership = await prisma.workspaceMember.findFirst({
-      where: { userId: session.user.id },
-      include: { workspace: true },
-    });
-
-    if (!workspaceMembership) {
-      return {
-        success: false,
-        message: 'You are not a member of any workspace',
-      };
-    }
-
     const tenant = await resolveTenantContext(
-      workspaceMembership.workspaceId,
+      parsed.data.workspaceId,
       session.user.id
     );
 
     if (!tenant) {
       return {
         success: false,
-        message: 'Cannot access workspace',
+        message: 'Cannot access this workspace',
       };
     }
 

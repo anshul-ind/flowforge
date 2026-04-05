@@ -6,11 +6,12 @@ import { CommentForm } from './comment-form';
 import { CommentItem } from './comment-item';
 import { CommentRepository } from '@/modules/comment/repository';
 import { TenantContext } from '@/lib/tenant/tenant-context';
+import type { WorkspaceRole } from '@/lib/generated/prisma';
 
 interface CommentsListProps {
   taskId: string;
   currentUserId: string;
-  currentUserRole: 'OWNER' | 'MANAGER' | 'MEMBER' | 'VIEWER';
+  currentUserRole: WorkspaceRole;
   tenant: TenantContext;
 }
 
@@ -101,6 +102,7 @@ export function CommentsList({
       {error && <div className="text-red-600 text-sm p-3 bg-red-50 rounded">{error}</div>}
 
       <CommentForm
+        workspaceId={tenant.workspaceId}
         taskId={taskId}
         onSuccess={handleCommentSuccess}
         onOptimistic={handleOptimisticComment}
