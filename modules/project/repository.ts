@@ -122,7 +122,7 @@ export class ProjectRepository {
     projectId: string,
     data: {
       title?: string;
-      description?: string;
+      description?: string | null;
       status?: ProjectStatus;
       dueDate?: Date | null;
     }
@@ -135,7 +135,7 @@ export class ProjectRepository {
       where: { id: projectId },
       data: {
         ...(title ? { title } : {}),
-        ...(description !== undefined ? { description } : {}),
+        ...(description !== undefined ? { description: description ?? null } : {}),
         ...(status ? { status } : {}),
         ...(dueDate !== undefined ? { dueDate } : {}),
       },

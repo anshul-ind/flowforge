@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Heart, Mail, Code } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FlowForgeMark } from '@/components/brand/flowforge-brand';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -53,27 +54,22 @@ export function Footer() {
   ];
 
   return (
-    <footer className="bg-[#0F0F0F] text-[#BFBFBF] border-t border-[#2E2E2E]">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Top section */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-12">
-          {/* Brand */}
+    <footer className="border-t border-gray-200 bg-gray-50 text-gray-600">
+      <div className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mb-12 grid grid-cols-1 gap-8 md:grid-cols-5">
           <div className="md:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-brand rounded-md flex items-center justify-center">
-                <span className="text-background font-bold text-sm">FF</span>
-              </div>
-              <span className="font-semibold text-white">FlowForge</span>
+            <div className="mb-4 flex items-center gap-2">
+              <FlowForgeMark variant="onLight" className="h-8 w-8" />
+              <span className="font-semibold text-gray-900">FlowForge</span>
             </div>
-            <p className="text-sm text-[#8C8C8C]">
+            <p className="text-sm text-gray-600">
               Ship projects your team actually finishes.
             </p>
           </div>
 
-          {/* Links */}
           {footerSections.map((section) => (
             <div key={section.title}>
-              <h4 className="font-semibold text-white mb-4 text-sm uppercase tracking-wide">
+              <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-900">
                 {section.title}
               </h4>
               <ul className="space-y-3">
@@ -82,8 +78,7 @@ export function Footer() {
                     <Link
                       href={link.href}
                       className={cn(
-                        'text-sm text-[#BFBFBF] hover:text-white',
-                        'transition-colors duration-200'
+                        'text-sm text-gray-600 transition-colors duration-200 hover:text-gray-900'
                       )}
                     >
                       {link.label}
@@ -95,16 +90,13 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Divider */}
-        <div className="border-t border-[#2E2E2E] my-8" />
+        <div className="my-8 border-t border-gray-200" />
 
-        {/* Bottom section */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-8">
-          <p className="text-sm text-[#8C8C8C]">
+        <div className="flex flex-col items-center justify-between gap-8 sm:flex-row">
+          <p className="text-sm text-gray-500">
             © {currentYear} FlowForge. All rights reserved.
           </p>
 
-          {/* Social Icons */}
           <div className="flex items-center gap-4">
             {socialLinks.map((link) => {
               const Icon = link.icon;
@@ -114,8 +106,7 @@ export function Footer() {
                   href={link.href}
                   aria-label={link.label}
                   className={cn(
-                    'w-5 h-5 text-[#BFBFBF] hover:text-white',
-                    'transition-colors duration-200'
+                    'h-5 w-5 text-gray-500 transition-colors duration-200 hover:text-gray-900'
                   )}
                 >
                   <Icon size={20} />

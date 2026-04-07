@@ -277,7 +277,26 @@ Server logs: look for **`[flowforge]`**, **`Authentication error`**, **`Signup e
 
 ---
 
-## 10. Security notes
+## 10. Production readiness (Phase-8)
+
+**Error tracking (Sentry):** set **`SENTRY_DSN`** (server) and **`NEXT_PUBLIC_SENTRY_DSN`** (browser) from your Sentry project. Optional: **`SENTRY_RELEASE`** / **`NEXT_PUBLIC_SENTRY_RELEASE`** (same value, e.g. git SHA), **`SENTRY_ENVIRONMENT`** / **`NEXT_PUBLIC_SENTRY_ENVIRONMENT`** (e.g. `production`). Server SDK initializes once via **`instrumentation.ts`** in production.
+
+**HTTP logs:** set **`LOG_HTTP_REQUESTS=1`** to emit one JSON line per request (`method`, `path`, `requestId`). Responses include **`x-request-id`** for correlation.
+
+**CDN:** set **`ASSET_PREFIX`** to your static asset origin (no trailing slash) so `/_next/static` URLs are prefixed—useful when serving JS/CSS from a CDN.
+
+**HTTPS:** set **`ENABLE_HSTS=1`** only when the app is served exclusively over HTTPS (adds `Strict-Transport-Security`).
+
+**Database backups:** with **`DATABASE_URL`** set and **`pg_dump`** on `PATH`:
+
+- Linux/macOS: `bash scripts/backup-postgres.sh` (optional directory argument; default `./backups`)
+- Windows: `npm run backup:postgres` or `powershell -ExecutionPolicy Bypass -File .\scripts\backup-postgres.ps1`
+
+Schedule the same command via **cron**, **Task Scheduler**, or your host’s backup jobs. Dumps are gitignored under **`/backups`**.
+
+---
+
+## 11. Security notes
 
 - Do not commit **`.env`** / **`.env.local`** with real passwords.
 - Prefer Postgres bound to **127.0.0.1** only on the app server; expose **HTTPS** for the Next app, not raw Postgres to the internet.

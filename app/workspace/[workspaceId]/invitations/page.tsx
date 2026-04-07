@@ -31,7 +31,7 @@ export default async function WorkspaceInvitationsPage({
     )
   }
 
-  const invites = await prisma.workspaceInvite.findMany({
+  const invites = await prisma.invite.findMany({
     where: {
       workspaceId,
       status: 'PENDING',

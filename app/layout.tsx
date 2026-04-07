@@ -6,14 +6,6 @@ import { SentryProvider } from '@/components/layout/sentry-provider';
 import { ThemeProvider } from '@/lib/theme/theme-provider';
 import { RootLayoutWrapper } from '@/components/layout/root-layout-wrapper';
 
-// Initialize Sentry on server side
-import { initServerSentry } from '@/lib/monitoring/sentry.server';
-
-// Suppress Sentry initialization warning in development
-if (process.env.NODE_ENV === 'production') {
-  initServerSentry();
-}
-
 export const metadata: Metadata = {
   title: 'FlowForge - Project Management SaaS',
   description: 'Ship projects your team actually finishes',
@@ -37,7 +29,7 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#0F0F0F" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
       </head>
       <body>
         <ThemeProvider>

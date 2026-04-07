@@ -23,6 +23,8 @@
     --color-danger: #DC2626;
     --color-info: #2563EB;
     --color-overlay: rgba(0, 0, 0, 0.45);
+    /* App chrome (navbar, marketing footer, shell sidebar) */
+    --color-app-shell: #171717;
 
     /* Role Colors */
     --color-role-owner-bg: #000000;
@@ -247,7 +249,7 @@
     top: 100%;
     left: 0;
     right: 0;
-    background: #0f0f0f;
+    background: var(--color-app-shell);
     border: 1px solid #333;
     border-radius: 8px;
     padding: 1rem;

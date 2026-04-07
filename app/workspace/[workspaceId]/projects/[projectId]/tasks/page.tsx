@@ -78,7 +78,7 @@ export default async function TasksPage({ params, searchParams }: TasksPageProps
         ]}
         action={
           <Link
-            href={`/workspace/${workspaceId}/projects/${projectId}/tasks/new`}
+            href={`/workspace/${workspaceId}/projects/${projectId}/tasks/create`}
             className="px-4 py-2 rounded-lg bg-black text-white font-semibold hover:bg-gray-900 transition-colors"
           >
             New Task

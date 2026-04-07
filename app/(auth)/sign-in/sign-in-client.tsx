@@ -5,31 +5,50 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
+import {
+  googleOAuthCallbackUrl,
+  postAuthRedirectPath,
+} from "@/lib/auth/post-auth-path";
 
-export function SignInClient({ googleAuthEnabled }: { googleAuthEnabled: boolean }) {
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  Configuration:
+    "Sign-in is not configured correctly. Check Google OAuth env vars and callback URL.",
+  AccessDenied: "Sign-in was cancelled or denied.",
+  Verification: "The sign-in link expired or was already used.",
+  OAuthSignin: "Could not start Google sign-in.",
+  OAuthCallback: "Google returned an error. Try again.",
+  OAuthAccountNotLinked:
+    "This email uses a different sign-in method. Try email and password, or contact support.",
+  Default: "Sign-in failed. Try again or use another method.",
+};
+
+export function SignInClient({
+  googleAuthEnabled,
+  authError,
+}: {
+  googleAuthEnabled: boolean;
+  authError?: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    authError ? OAUTH_ERROR_MESSAGES[authError] ?? OAUTH_ERROR_MESSAGES.Default : ""
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const callbackUrlRaw = searchParams.get("callbackUrl") || "/workspace/redirects";
-  const callbackUrl = (() => {
-    try {
-      return decodeURIComponent(callbackUrlRaw);
-    } catch {
-      return callbackUrlRaw;
-    }
-  })();
+  const postAuthPath = postAuthRedirectPath(searchParams.get("callbackUrl"));
 
   const handleGoogle = async () => {
     setError("");
     setGoogleLoading(true);
     try {
-      await signIn("google", { callbackUrl });
+      await signIn("google", {
+        callbackUrl: googleOAuthCallbackUrl(searchParams.get("callbackUrl")),
+      });
     } catch {
       setError("Could not start Google sign-in");
       setGoogleLoading(false);
@@ -52,7 +71,7 @@ export function SignInClient({ googleAuthEnabled }: { googleAuthEnabled: boolean
         setError("Invalid email or password");
         setIsLoading(false);
       } else if (result?.ok) {
-        router.push(callbackUrl);
+        router.push(postAuthPath);
         router.refresh();
       }
     } catch {
@@ -66,10 +85,14 @@ export function SignInClient({ googleAuthEnabled }: { googleAuthEnabled: boolean
       <div className="hidden lg:flex w-1/2 flex-col justify-between bg-gradient-to-br from-brand to-brand-dark p-12 text-black">
         <div>
           <div className="mb-8">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-white/20 backdrop-blur">
-              <span className="text-xl font-bold text-black">
-                <img src="./public/assets/flowforge-logo.png" alt="" />
-              </span>
+            <div className="inline-flex items-center justify-center rounded-lg bg-white/20 p-2 backdrop-blur">
+              <img
+                src="/assets/logo1.png"
+                alt=""
+                width={200}
+                height={56}
+                className="h-10 w-auto object-contain"
+              />
             </div>
           </div>
           <h1 className="text-5xl font-bold tracking-tight">FlowForge</h1>
@@ -161,33 +184,7 @@ export function SignInClient({ googleAuthEnabled }: { googleAuthEnabled: boolean
             </div>
           )}
 
-          {googleAuthEnabled ? (
-            <div className="space-y-4">
-              <button
-                type="button"
-                onClick={() => void handleGoogle()}
-                disabled={googleLoading || isLoading}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-primary hover:bg-surface-alt focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
-              >
-                {googleLoading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    Redirecting…
-                  </span>
-                ) : (
-                  <>Continue with Google</>
-                )}
-              </button>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="bg-surface px-2 text-tertiary">Or use email</span>
-                </div>
-              </div>
-            </div>
-          ) : null}
+ 
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
@@ -249,7 +246,7 @@ export function SignInClient({ googleAuthEnabled }: { googleAuthEnabled: boolean
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full rounded-lg bg-brand px-4 py-2.5 font-semibold text-white hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors sm:text-sm"
+              className="w-full rounded-xl bg-black px-4 py-2.5 font-semibold text-white transition-colors hover:bg-neutral-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -262,7 +259,42 @@ export function SignInClient({ googleAuthEnabled }: { googleAuthEnabled: boolean
             </button>
           </form>
 
-          <div className="text-center">
+       
+        </div>
+        <div className="w-full max-w-lg space-y-8 border border-white/10 h-10 "> 
+        <div className="relative flex justify-center text-sm">
+                  <span className="bg-surface px-2 text-tertiary  p-2 h-12">Or use Google</span>
+                </div></div>
+
+
+
+        {googleAuthEnabled ? (
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={() => void handleGoogle()}
+                disabled={googleLoading || isLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {googleLoading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Redirecting…
+                  </span>
+                ) : (
+                  <>Continue with Google</>
+                )}
+              </button>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  {/* <div className="w-full border-t border-border" /> */}
+                </div>
+              
+              </div>
+            </div>
+          ) : null} 
+           
+           <div className="text-center">
             <p className="text-sm text-secondary">
               Don&apos;t have an account?{" "}
               <Link
@@ -273,7 +305,6 @@ export function SignInClient({ googleAuthEnabled }: { googleAuthEnabled: boolean
               </Link>
             </p>
           </div>
-        </div>
       </div>
     </div>
   );

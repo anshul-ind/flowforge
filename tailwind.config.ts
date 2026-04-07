@@ -53,6 +53,7 @@ const config: Config = {
         xl: 'var(--shadow-xl)',
       },
       colors: {
+        'app-shell': 'var(--color-app-shell)',
         background: 'var(--color-background)',
         surface: 'var(--color-surface)',
         'surface-raised': 'var(--color-surface-raised)',

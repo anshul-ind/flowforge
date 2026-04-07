@@ -3,6 +3,9 @@
 import { auth } from '@/auth';
 import { getWorkspaceContext } from '@/lib/tenancy/workspace-context';
 import { requirePermission } from '@/lib/permissions/rbac';
+import { resolveTenantContext } from '@/lib/tenant/resolve-tenant';
+import { ProjectService } from '@/modules/project/service';
+import { ForbiddenError, NotFoundError } from '@/lib/errors/authorization';
 import { revalidatePath } from 'next/cache';
 
 interface CreateProjectInput {
@@ -121,14 +124,19 @@ export async function archiveProjectAction(
 
     requirePermission(context.role, 'archive_project');
 
-    // TODO: DB update
-    // await db.project.update({
-    //   where: { id: projectId, workspaceId },
-    //   data: { archived: true },
-    // });
+    const tenant = await resolveTenantContext(workspaceId, session.user.id);
+    if (!tenant) {
+      return {
+        success: false,
+        error: 'Access denied',
+      };
+    }
 
-    // TODO: Audit log
+    const service = new ProjectService(tenant);
+    await service.archiveProject(projectId);
+
     revalidatePath(`/workspace/${workspaceId}/projects`);
+    revalidatePath(`/workspace/${workspaceId}/projects/${projectId}`);
 
     return {
       success: true,
@@ -136,6 +144,12 @@ export async function archiveProjectAction(
     };
   } catch (error) {
     console.error('[archiveProjectAction]', error);
+    if (error instanceof ForbiddenError) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof NotFoundError) {
+      return { success: false, error: error.message };
+    }
     return {
       success: false,
       error: String(error).includes('Insufficient') ? String(error) : 'Failed to archive project',

@@ -5,18 +5,18 @@ import { WorkspaceService } from '@/modules/workspace/service'
 import { PageHeader, PageContainer } from '@/components/layout/page-components'
 import { CreateTaskForm } from '@/components/forms/create-task-form'
 
-interface NewTaskPageProps {
+interface CreateTaskPageProps {
   params: Promise<{ workspaceId: string; projectId: string }>
 }
 
-export async function generateMetadata({ params }: NewTaskPageProps) {
+export async function generateMetadata({ params }: CreateTaskPageProps) {
   return {
     title: 'Create New Task',
     description: 'Create a new task in this project',
   }
 }
 
-export default async function NewTaskPage({ params }: NewTaskPageProps) {
+export default async function CreateTaskPage({ params }: CreateTaskPageProps) {
   const { workspaceId, projectId } = await params
   const user = await requireUser()
   const tenant = await resolveTenantContext(workspaceId, user.id)
@@ -35,7 +35,6 @@ export default async function NewTaskPage({ params }: NewTaskPageProps) {
     return <div>Project not found</div>
   }
 
-  // Transform workspace members to the format expected by CreateTaskForm
   const formattedMembers = workspaceMembers
     .filter((m) => m.status === 'ACTIVE' || m.status === 'INVITED')
     .map((member) => ({

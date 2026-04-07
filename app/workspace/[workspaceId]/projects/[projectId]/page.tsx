@@ -7,6 +7,7 @@ import { ProjectTaskUrlFilters } from '@/components/projects/project-task-url-fi
 import { getActiveWorkspaceMembersForFilters } from '@/lib/queries/workspace-members'
 import { parseProjectTaskUrlSearchParams } from '@/lib/validation/project-task-url'
 import Link from 'next/link'
+import { ProjectPolicy } from '@/modules/project/policies'
 
 interface ProjectPageProps {
   params: Promise<{ workspaceId: string; projectId: string }>
@@ -63,6 +64,8 @@ export default async function ProjectPage({ params, searchParams }: ProjectPageP
     label: m.user.name || m.user.email || m.userId,
   }))
 
+  const canEditProject = ProjectPolicy.canUpdate(tenant)
+
   const stats = {
     totalTasks: tasks.length,
     completedTasks: tasks.filter((t) => t.status === 'DONE').length,
@@ -81,12 +84,22 @@ export default async function ProjectPage({ params, searchParams }: ProjectPageP
           { label: project.title },
         ]}
         action={
-          <a
-            href={`/workspace/${workspaceId}/projects/${projectId}/tasks/new`}
-            className="px-4 py-2 rounded-lg bg-black text-white font-semibold hover:bg-gray-900 transition-colors"
-          >
-            New Task
-          </a>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {canEditProject ? (
+              <Link
+                href={`/workspace/${workspaceId}/projects/${projectId}/settings`}
+                className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Settings
+              </Link>
+            ) : null}
+            <Link
+              href={`/workspace/${workspaceId}/projects/${projectId}/tasks/create`}
+              className="px-4 py-2 rounded-lg bg-black text-white font-semibold hover:bg-gray-900 transition-colors"
+            >
+              New Task
+            </Link>
+          </div>
         }
       />
 

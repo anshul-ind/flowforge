@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { safeCallbackPath } from "@/lib/auth/safe-callback-path";
 import { signinLimiter } from "@/lib/rate-limiting/rate-limiter";
 import { WorkspaceRepository } from "@/modules/workspace/repository";
 
@@ -98,6 +99,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
 
   callbacks: {
+    /**
+     * Same-origin only; path must pass safeCallbackPath (mitigate open redirects after OAuth).
+     * Default fallback matches post-login routing used elsewhere.
+     */
+    async redirect({ url, baseUrl }) {
+      try {
+        const base = new URL(baseUrl);
+        const parsed = new URL(url, baseUrl);
+        if (parsed.origin !== base.origin) {
+          return `${baseUrl}/workspace/redirects`;
+        }
+        const pathWithQuery = `${parsed.pathname}${parsed.search}`;
+        const safe = safeCallbackPath(pathWithQuery);
+        if (safe) return `${baseUrl}${safe}`;
+      } catch {
+        // ignore invalid url
+      }
+      return `${baseUrl}/workspace/redirects`;
+    },
+
     async jwt({ token, user, account, profile }) {
       if (account?.provider === "google" && profile && "email" in profile && profile.email) {
         const email = String(profile.email).toLowerCase();
@@ -122,7 +143,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
         if (workspaceCount === 0) {
           const wsName = name ? `${name}'s Workspace` : "My Workspace";
-          await WorkspaceRepository.create(wsName, `${dbUser.id}-personal`, dbUser.id);
+          try {
+            await WorkspaceRepository.create(wsName, `${dbUser.id}-personal`, dbUser.id);
+          } catch (e) {
+            console.error("[Auth] Google sign-in: bootstrap workspace failed", e);
+            // Session still issued; /workspace/redirects sends users to /workspace/new if needed.
+          }
         }
 
         token.id = dbUser.id;

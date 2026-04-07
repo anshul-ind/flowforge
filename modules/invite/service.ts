@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import type { WorkspaceInvite, WorkspaceRole } from '@/lib/generated/prisma'
+import type { Invite, WorkspaceRole } from '@/lib/generated/prisma'
 import { generateInviteRawToken, hashInviteToken } from '@/lib/invite/token-hash'
 import { InviteRepository } from './repository'
 import { MembershipRepository } from '@/modules/membership/repository'
@@ -19,7 +19,7 @@ export type CreateWorkspaceInviteParams = {
 }
 
 export type CreateWorkspaceInviteResult = {
-  invite: WorkspaceInvite
+  invite: Invite
   rawToken: string
 }
 

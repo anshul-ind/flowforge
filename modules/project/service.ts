@@ -76,7 +76,7 @@ export class ProjectService {
     projectId: string,
     data: {
       title?: string;
-      description?: string;
+      description?: string | null;
       status?: ProjectStatus;
       dueDate?: Date | null;
     }
@@ -91,7 +91,12 @@ export class ProjectService {
     // Sanitize input
     const sanitizedData = {
       title: data.title ? sanitizeText(data.title) : undefined,
-      description: data.description ? sanitizeText(data.description) : undefined,
+      description:
+        data.description === undefined
+          ? undefined
+          : data.description
+            ? sanitizeText(data.description)
+            : null,
       status: data.status,
       dueDate: data.dueDate,
     };

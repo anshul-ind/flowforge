@@ -4,13 +4,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Accept invite (legacy GET flow).
- * Prefers redirect to workspace when session exists; otherwise sends user to sign-in.
+ * Unauthenticated → sign-in with callback. Failure → back to /invite/accept with message (no raw JSON in browsers).
  */
 export async function GET(request: NextRequest) {
   try {
     const token = request.nextUrl.searchParams.get('token');
     if (!token) {
-      return NextResponse.json({ error: 'Missing token' }, { status: 400 });
+      const back = new URL('/invite/accept', request.url);
+      back.searchParams.set('inviteError', 'Missing invitation token');
+      return NextResponse.redirect(back);
     }
 
     const session = await auth();
@@ -26,15 +28,17 @@ export async function GET(request: NextRequest) {
     const result = await acceptInviteByToken(token);
 
     if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+      const back = new URL('/invite/accept', request.url);
+      back.searchParams.set('token', token);
+      back.searchParams.set('inviteError', result.error);
+      return NextResponse.redirect(back);
     }
 
     return NextResponse.redirect(new URL(result.nextPath, request.url));
   } catch (error) {
     console.error('[GET /api/invite/accept]', error);
-    return NextResponse.json(
-      { error: 'Failed to accept invite' },
-      { status: 500 }
-    );
+    const back = new URL('/invite/accept', request.url);
+    back.searchParams.set('inviteError', 'Failed to accept invitation');
+    return NextResponse.redirect(back);
   }
 }

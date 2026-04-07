@@ -84,7 +84,7 @@ export async function getWorkspaceAnalyticsSnapshot(
       where: { workspaceId },
       _count: { _all: true },
     }),
-    prisma.workspaceInvite.count({
+    prisma.invite.count({
       where: {
         workspaceId,
         status: 'PENDING',

@@ -12,7 +12,11 @@ export function initClientSentry() {
 
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV || 'development',
+    environment:
+      process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ||
+      process.env.NODE_ENV ||
+      'development',
+    release: process.env.NEXT_PUBLIC_SENTRY_RELEASE?.trim() || undefined,
     enabled: !!(
       process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN
     ),

@@ -1,18 +1,16 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronDown, Menu, X } from 'lucide-react'
+import { ChevronDown, Menu, Settings, X, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { WorkspaceRole } from '@/lib/generated/prisma'
-import { canViewAuditLog } from '@/lib/permissions'
-
-interface NavItem {
-  label: string
-  href: string
-  sub?: NavItem[]
-}
+import {
+  buildSidebarQuickLinks,
+  buildSidebarSections,
+  type SidebarNavItem,
+  type SidebarNavSection,
+} from '@/components/layout/sidebar-nav-build'
 
 interface GlobalSidebarProps {
   workspaceId?: string
@@ -27,6 +25,10 @@ interface UserWorkspaceListItem {
   role: string
 }
 
+const RAIL_COLLAPSE_MS = 260
+const RAIL_COLLAPSED_W = '4.25rem'
+const RAIL_EXPANDED_W = '18rem'
+
 export function GlobalSidebar({
   workspaceId,
   projectId,
@@ -34,11 +36,15 @@ export function GlobalSidebar({
 }: GlobalSidebarProps) {
   const pathname = usePathname()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [hoverExpanded, setHoverExpanded] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(['workspaces', 'projects', 'templates'])
+    () => new Set(['quick', 'workspaces', 'projects', 'templates'])
   )
+  const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [userWorkspaces, setUserWorkspaces] = useState<UserWorkspaceListItem[]>([])
+
+  const settingsHref = workspaceId ? `/workspace/${workspaceId}/settings` : '/workspace'
 
   useEffect(() => {
     let cancelled = false
@@ -54,225 +60,272 @@ export function GlobalSidebar({
         // Ignore (sidebar should not break page)
       }
     }
-
     load()
     return () => {
       cancelled = true
     }
   }, [])
 
+  const clearCollapseTimer = useCallback(() => {
+    if (collapseTimer.current) {
+      clearTimeout(collapseTimer.current)
+      collapseTimer.current = null
+    }
+  }, [])
+
+  const openRail = useCallback(() => {
+    clearCollapseTimer()
+    setHoverExpanded(true)
+  }, [clearCollapseTimer])
+
+  const scheduleCollapse = useCallback(() => {
+    clearCollapseTimer()
+    collapseTimer.current = setTimeout(() => {
+      setHoverExpanded(false)
+      collapseTimer.current = null
+    }, RAIL_COLLAPSE_MS)
+  }, [clearCollapseTimer])
+
+  useEffect(() => () => clearCollapseTimer(), [clearCollapseTimer])
+
   const toggleSection = useCallback((section: string) => {
     setExpandedSections((prev) => {
       const next = new Set(prev)
-      if (next.has(section)) {
-        next.delete(section)
-      } else {
-        next.add(section)
-      }
+      if (next.has(section)) next.delete(section)
+      else next.add(section)
       return next
     })
   }, [])
 
-  const isActive = (href: string) => pathname === href || currentPath === href
+  const isActive = (href: string) =>
+    href !== '#' && (pathname === href || currentPath === href)
 
-  // Build workspace items
-  const workspaceItems: NavItem[] = [
-    { label: 'All Workspaces', href: '/workspace' },
-    { label: 'Create Workspace', href: '/workspace/new' },
-    ...userWorkspaces.map((w) => ({
-      label: w.name,
-      href: `/workspace/${w.id}`,
-      ...(workspaceId === w.id
-        ? {
-            sub: [
-              { label: 'Overview', href: `/workspace/${w.id}` },
-              { label: 'Members', href: `/workspace/${w.id}/members` },
-              { label: 'Invitations', href: `/workspace/${w.id}/invitations` },
-              ...(canViewAuditLog(w.role as WorkspaceRole)
-                ? [{ label: 'Activity log', href: `/workspace/${w.id}/audit` }]
-                : []),
-              { label: 'Settings', href: `/workspace/${w.id}/settings` },
-            ],
-          }
-        : {}),
-    })),
-  ]
+  const navSections = buildSidebarSections({ workspaceId, projectId, userWorkspaces })
+  const quickLinks = buildSidebarQuickLinks(workspaceId)
 
-  // Build project items
-  const projectItems: NavItem[] = [
-    {
-      label: 'All Projects',
-      href: workspaceId ? `/workspace/${workspaceId}/projects` : '#',
-    },
-    {
-      label: 'Create Project',
-      href: workspaceId ? `/workspace/${workspaceId}/projects/new` : '#',
-    },
-  ]
+  const quickSection: SidebarNavSection | null =
+    quickLinks.length > 0
+      ? { id: 'quick', title: 'Shortcuts', icon: Zap, items: quickLinks }
+      : null
 
-  if (projectId && workspaceId) {
-    projectItems.push({
-      label: 'Current Project',
-      href: `/workspace/${workspaceId}/projects/${projectId}`,
-      sub: [
-        {
-          label: 'Overview',
-          href: `/workspace/${workspaceId}/projects/${projectId}`,
-        },
-        {
-          label: 'Tasks',
-          href: `/workspace/${workspaceId}/projects/${projectId}/tasks`,
-        },
-        {
-          label: 'Board',
-          href: `/workspace/${workspaceId}/projects/${projectId}/board`,
-        },
-        {
-          label: 'Approvals',
-          href: `/workspace/${workspaceId}/projects/${projectId}/approvals`,
-        },
-        {
-          label: 'Activity',
-          href: `/workspace/${workspaceId}/projects/${projectId}/activity`,
-        },
-      ],
+  const allSections = quickSection ? [quickSection, ...navSections] : navSections
+
+  /** Desktop: show labels when hover-expanded; mobile drawer: when open */
+  const labelsVisible = isMobileOpen || hoverExpanded
+
+  const renderNavRows = (items: SidebarNavItem[], sectionId: string) =>
+    items.map((item) => {
+      const ItemIcon = item.icon
+      return (
+        <div key={`${sectionId}-${item.href}-${item.label}`}>
+          <Link
+            href={item.href}
+            title={!labelsVisible ? item.label : undefined}
+            className={cn(
+              'flex items-center gap-3 rounded-r-lg border-l-2 py-2 text-sm transition-colors',
+              labelsVisible ? 'px-3 pl-5' : 'justify-center px-0 md:justify-center',
+              isActive(item.href)
+                ? 'border-l-white bg-white/10 font-semibold text-white'
+                : 'border-l-transparent text-neutral-400 hover:bg-white/5 hover:text-neutral-100'
+            )}
+            onClick={() => setIsMobileOpen(false)}
+          >
+            <ItemIcon className="h-5 w-5 shrink-0" aria-hidden />
+            <span
+              className={cn(
+                'min-w-0 truncate transition-all duration-200 ease-out',
+                labelsVisible ? 'max-w-[12rem] opacity-100' : 'max-w-0 opacity-0 md:overflow-hidden'
+              )}
+            >
+              {item.label}
+            </span>
+          </Link>
+          {item.sub && labelsVisible && (
+            <div className="mt-1 ml-2 space-y-1 border-l border-white/10 pl-3">
+              {item.sub.map((subItem) => {
+                const SubIcon = subItem.icon
+                return (
+                  <Link
+                    key={`${subItem.href}-${subItem.label}`}
+                    href={subItem.href}
+                    title={subItem.label}
+                    className={cn(
+                      'flex items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors',
+                      isActive(subItem.href)
+                        ? 'bg-white/10 font-medium text-white'
+                        : 'text-neutral-500 hover:bg-white/5 hover:text-neutral-200'
+                    )}
+                    onClick={() => setIsMobileOpen(false)}
+                  >
+                    <SubIcon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                    <span className="truncate">{subItem.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )
     })
-  }
 
-  // Main navigation sections
-  const navSections = [
-    {
-      id: 'workspaces',
-      title: 'Workspaces',
-      icon: '📦',
-      items: workspaceItems,
-    },
-    {
-      id: 'projects',
-      title: 'Projects',
-      icon: '📊',
-      items: projectItems,
-    },
-    {
-      id: 'templates',
-      title: 'Templates',
-      icon: '📋',
-      items: [
-        { label: 'Kanban', href: '#' },
-        { label: 'Agile', href: '#' },
-        { label: 'Waterfall', href: '#' },
-      ],
-    },
-  ]
+  const renderSections = () => (
+    <nav className="space-y-1 px-2 py-3">
+      {allSections.map((section) => {
+        const SectionIcon = section.icon
+        return (
+          <div key={section.id}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!labelsVisible) openRail()
+                toggleSection(section.id)
+              }}
+              className={cn(
+                'flex w-full items-center rounded-lg py-2.5 text-xs font-bold uppercase tracking-widest text-neutral-500 transition-colors hover:text-white',
+                labelsVisible ? 'justify-between px-3' : 'justify-center px-0'
+              )}
+              aria-expanded={expandedSections.has(section.id)}
+              aria-label={!labelsVisible ? `${section.title} menu` : undefined}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <SectionIcon className="h-4 w-4 shrink-0 text-neutral-300" aria-hidden />
+                <span
+                  className={cn(
+                    'truncate transition-all duration-200 ease-out',
+                    labelsVisible ? 'max-w-[10rem] opacity-100' : 'max-w-0 opacity-0 md:overflow-hidden'
+                  )}
+                >
+                  {section.title}
+                </span>
+              </span>
+              {labelsVisible && (
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 shrink-0 transition-transform',
+                    expandedSections.has(section.id) && 'rotate-180'
+                  )}
+                />
+              )}
+            </button>
+            {expandedSections.has(section.id) && (
+              <div
+                className={cn(
+                  'mt-1 space-y-0.5 border-l-2 border-white/10',
+                  labelsVisible ? '' : 'border-l-0'
+                )}
+              >
+                {renderNavRows(section.items, section.id)}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </nav>
+  )
+
+  const headerBlock = (
+    <div className="shrink-0 border-b border-white/10 bg-[#171717] px-2 py-4">
+      <Link
+        href="/"
+        className={cn(
+          'group flex items-center gap-3 rounded-lg transition-colors hover:bg-white/5',
+          labelsVisible ? 'px-2' : 'justify-center px-0'
+        )}
+        onClick={() => setIsMobileOpen(false)}
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-sm font-bold text-[#171717] group-hover:bg-neutral-100">
+          FF
+        </div>
+        <div
+          className={cn(
+            'min-w-0 flex-1 overflow-hidden transition-all duration-200 ease-out',
+            labelsVisible
+              ? 'max-w-[11rem] opacity-100'
+              : 'max-w-0 opacity-0 md:pointer-events-none md:sr-only'
+          )}
+        >
+          <span className="block truncate text-lg font-bold tracking-tight text-white">FlowForge</span>
+          <span className="block truncate text-xs text-neutral-400">Project management</span>
+        </div>
+      </Link>
+    </div>
+  )
+
+  const settingsBlock = (
+    <div className="mt-auto shrink-0 border-t border-white/10 bg-[#171717] px-2 py-3">
+      <Link
+        href={settingsHref}
+        title={!labelsVisible ? 'Settings' : undefined}
+        className={cn(
+          'flex items-center gap-3 rounded-lg py-2.5 text-sm font-medium text-neutral-300 transition-colors hover:bg-white/5 hover:text-white',
+          labelsVisible ? 'px-3' : 'justify-center px-0'
+        )}
+        onClick={() => setIsMobileOpen(false)}
+      >
+        <Settings className="h-5 w-5 shrink-0" aria-hidden />
+        <span
+          className={cn(
+            'min-w-0 truncate transition-all duration-200 ease-out',
+            labelsVisible ? 'max-w-[12rem] opacity-100' : 'max-w-0 opacity-0 md:overflow-hidden'
+          )}
+        >
+          Settings
+        </span>
+      </Link>
+    </div>
+  )
+
+  const asideInner = (
+    <div className="flex h-full min-h-0 flex-col bg-[#171717]">
+      {headerBlock}
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">{renderSections()}</div>
+      {settingsBlock}
+    </div>
+  )
 
   return (
     <>
-      {/* Mobile Toggle Button */}
       <button
+        type="button"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="fixed bottom-6 right-6 z-40 flex md:hidden h-12 w-12 items-center justify-center rounded-full bg-black text-white shadow-lg hover:bg-gray-900"
+        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#171717] text-white shadow-lg hover:bg-neutral-800/90 md:hidden"
+        aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
       >
         {isMobileOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
-      {/* Sidebar - Desktop and Mobile */}
+      {/* Desktop: hover rail */}
+      <div
+        className="relative hidden h-full min-h-0 shrink-0 self-stretch md:flex md:max-h-full"
+        onMouseEnter={openRail}
+        onMouseLeave={scheduleCollapse}
+      >
+        <div className="flex h-full min-h-0 max-h-full flex-1 flex-row">
+          <div className="w-2 shrink-0 bg-transparent" aria-hidden />
+          <aside
+            className="relative z-30 h-full max-h-full min-h-0 shrink-0 overflow-hidden border-r border-white/10 bg-app-shell transition-[width] duration-300 ease-out"
+            style={{ width: hoverExpanded ? RAIL_EXPANDED_W : RAIL_COLLAPSED_W }}
+          >
+            {asideInner}
+          </aside>
+        </div>
+      </div>
+
+      {/* Mobile drawer — full viewport height */}
       <aside
         className={cn(
-          'fixed left-0 top-0 bottom-0 z-30 w-72 overflow-y-auto border-r border-gray-800 bg-gradient-to-b from-gray-950 via-gray-900 to-black transition-transform md:relative md:translate-x-0',
+          'fixed left-0 top-0 z-30 flex h-dvh max-h-dvh min-h-0 w-72 flex-col overflow-hidden border-r border-white/10 bg-[#171717] transition-transform duration-300 ease-out md:hidden',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
+        aria-hidden={!isMobileOpen}
       >
-        {/* Header */}
-        <div className="sticky top-0 z-10 border-b border-gray-800 bg-black/80 backdrop-blur px-6 py-6">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white text-sm font-bold text-black group-hover:bg-gray-100 transition-colors">
-              F
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate text-lg font-bold text-white">FlowForge</h2>
-              <p className="truncate text-xs text-gray-400">Project Management</p>
-            </div>
-          </Link>
-        </div>
-
-        {/* Navigation Sections */}
-        <nav className="space-y-1 px-3 py-4">
-          {navSections.map((section) => (
-            <div key={section.id}>
-              {/* Section Header */}
-              <button
-                onClick={() => toggleSection(section.id)}
-                className="w-full flex items-center justify-between px-4 py-3 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors group"
-              >
-                <span className="flex items-center gap-2">
-                  <span>{section.icon}</span>
-                  <span>{section.title}</span>
-                </span>
-                <ChevronDown
-                  className={cn(
-                    'h-4 w-4 transition-transform',
-                    expandedSections.has(section.id) && 'rotate-180'
-                  )}
-                />
-              </button>
-
-              {/* Section Items */}
-              {expandedSections.has(section.id) && (
-                <div className="mt-2 space-y-1 border-l-2 border-gray-800">
-                  {section.items.map((item) => (
-                    <div key={`${section.id}-${item.href}-${item.label}`}>
-                      {/* Main Item */}
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          'block px-4 py-2 ml-0 text-sm transition-all rounded-r-lg border-l-2 -ml-2 pl-6',
-                          isActive(item.href)
-                            ? 'border-l-white bg-gray-800 text-white font-semibold'
-                            : 'border-l-transparent text-gray-400 hover:bg-gray-900 hover:text-gray-200'
-                        )}
-                        onClick={() => setIsMobileOpen(false)}
-                      >
-                        {item.label}
-                      </Link>
-
-                      {/* Sub-items (Mega Dropdown) */}
-                      {item.sub && (
-                        <div className="mt-1 ml-4 space-y-1 border-l border-gray-800 pl-3">
-                          {item.sub.map((subItem) => (
-                            <Link
-                                  key={`${subItem.href}-${subItem.label}`}
-                              href={subItem.href}
-                              className={cn(
-                                'block px-3 py-1.5 text-xs rounded transition-all',
-                                isActive(subItem.href)
-                                  ? 'bg-white/10 text-white font-medium'
-                                  : 'text-gray-500 hover:bg-gray-800/50 hover:text-gray-300'
-                              )}
-                              onClick={() => setIsMobileOpen(false)}
-                            >
-                              {subItem.label}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </nav>
-
-        {/* Footer */}
-        <div className="sticky bottom-0 border-t border-gray-800 bg-black/80 backdrop-blur px-4 py-3">
-          <p className="text-xs text-gray-500">FlowForge v1.0.0</p>
-        </div>
+        {asideInner}
       </aside>
 
-      {/* Mobile Overlay */}
       {isMobileOpen && (
         <div
           className="fixed inset-0 z-20 bg-black/50 md:hidden"
+          aria-hidden
           onClick={() => setIsMobileOpen(false)}
         />
       )}

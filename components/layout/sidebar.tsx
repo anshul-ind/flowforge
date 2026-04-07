@@ -80,7 +80,7 @@ export function Sidebar({ user, workspaceId }: { user: User | null; workspaceId:
 
       {/* Footer - status indicator */}
       <footer className="border-t border-border bg-surface-alt px-4 py-3">
-        <p className="text-xs text-tertiary">Phase 3 Redesigned</p>
+        <p className="text-xs text-tertiary">FlowForge</p>
       </footer>
     </aside>
   );

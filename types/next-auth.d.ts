@@ -13,6 +13,14 @@ export type User = DefaultUser & {
 };
 
 declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    };
+  }
   /**
    * Extended User object
    * Includes the user ID

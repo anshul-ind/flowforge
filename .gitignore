@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 /lib/generated/prisma
+
+# local DB dumps (Phase-8 backup scripts)
+/backups

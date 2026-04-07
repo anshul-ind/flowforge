@@ -78,7 +78,7 @@ export async function canUserPerformAction(
  * Get pending invites for workspace
  */
 export async function getPendingInvites(workspaceId: string) {
-  return prisma.workspaceInvite.findMany({
+  return prisma.invite.findMany({
     where: {
       workspaceId,
       status: 'PENDING',
@@ -92,7 +92,7 @@ export async function getPendingInvites(workspaceId: string) {
  * Validate invite token
  */
 export async function validateInviteToken(token: string) {
-  const invite = await prisma.workspaceInvite.findUnique({
+  const invite = await prisma.invite.findUnique({
     where: { tokenHash: hashInviteToken(token.trim()) },
     include: { workspace: true },
   })

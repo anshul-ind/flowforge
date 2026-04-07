@@ -6,26 +6,26 @@ const workspaceAcceptInclude = {
 } as const
 
 export class InviteRepository {
-  static create(data: Prisma.WorkspaceInviteUncheckedCreateInput) {
-    return prisma.workspaceInvite.create({ data })
+  static create(data: Prisma.InviteUncheckedCreateInput) {
+    return prisma.invite.create({ data })
   }
 
   static findByTokenHashForAccept(tokenHash: string) {
-    return prisma.workspaceInvite.findUnique({
+    return prisma.invite.findUnique({
       where: { tokenHash },
       include: { workspace: workspaceAcceptInclude },
     })
   }
 
   static markAccepted(tx: Prisma.TransactionClient, inviteId: string) {
-    return tx.workspaceInvite.update({
+    return tx.invite.update({
       where: { id: inviteId },
       data: { status: 'ACCEPTED', acceptedAt: new Date() },
     })
   }
 
   static markAcceptedOutsideTx(inviteId: string) {
-    return prisma.workspaceInvite.update({
+    return prisma.invite.update({
       where: { id: inviteId },
       data: { status: 'ACCEPTED', acceptedAt: new Date() },
     })

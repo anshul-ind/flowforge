@@ -15,7 +15,10 @@ import { OrganizationRepository } from '@/modules/organization/repository'
 import { InviteService } from '@/modules/invite/service'
 import { buildInviteAcceptUrl } from '@/modules/invite/build-invite-url'
 import { MembershipRepository } from '@/modules/membership/repository'
-import { computeInviteAcceptNextPath } from '@/lib/invite/post-accept-redirect'
+import {
+  computeInviteAcceptNextPath,
+  resolveSafeInviteRedirectPath,
+} from '@/lib/invite/post-accept-redirect'
 
 type InviteActionState =
   | { ok: true; inviteUrl: string; emailSent?: boolean; emailError?: string }
@@ -271,10 +274,15 @@ export async function acceptInviteByToken(
     inviteTaskId,
   } = result
 
-  const nextPath = await computeInviteAcceptNextPath(
+  let nextPath = await computeInviteAcceptNextPath(
     workspaceId,
     inviteProjectId,
     inviteTaskId
+  )
+  nextPath = await resolveSafeInviteRedirectPath(
+    session.user.id,
+    workspaceId,
+    nextPath
   )
 
   if (!alreadyMember || scopeOnlyProvisioned) {
@@ -347,7 +355,7 @@ export async function revokeWorkspaceInviteAction(
     throw e
   }
 
-  const invite = await prisma.workspaceInvite.findFirst({
+  const invite = await prisma.invite.findFirst({
     where: { id: inviteId, workspaceId },
   })
   if (!invite) {
@@ -360,7 +368,7 @@ export async function revokeWorkspaceInviteAction(
     return { ok: false, error: 'This invitation was already revoked' }
   }
 
-  await prisma.workspaceInvite.update({
+  await prisma.invite.update({
     where: { id: inviteId },
     data: { status: 'REVOKED', revokedAt: new Date() },
   })

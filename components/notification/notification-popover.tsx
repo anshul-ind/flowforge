@@ -64,7 +64,7 @@ export function NotificationPopover({
       {/* Bell Icon Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-slate-600 hover:text-slate-900 transition-colors"
+        className="relative rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
         aria-label="Notifications"
       >
         <svg

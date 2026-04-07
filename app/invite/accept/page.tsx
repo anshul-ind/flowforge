@@ -6,8 +6,10 @@ export const dynamic = 'force-dynamic'
 export default async function InviteAcceptQueryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>
+  searchParams: Promise<{ token?: string; inviteError?: string }>
 }) {
-  const { token = '' } = await searchParams
-  return <InviteFlow token={typeof token === 'string' ? token : ''} />
+  const sp = await searchParams
+  const token = typeof sp.token === 'string' ? sp.token : ''
+  const inviteError = typeof sp.inviteError === 'string' ? sp.inviteError : undefined
+  return <InviteFlow token={token} inviteError={inviteError} />
 }

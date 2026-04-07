@@ -9,6 +9,43 @@ datasource db {
   provider = "postgresql"
 }
 
+
+model Account {
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sessionToken])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
 model User {
   id                      String               @id @default(cuid())
   email                   String               @unique
@@ -24,7 +61,7 @@ model User {
   auditLogs               AuditLog[]
   comments                Comment[]
   commentReactions        CommentReaction[]
-  invitesSent             WorkspaceInvite[]    @relation("InviteInvitedBy")
+  invitesSent             Invite[]            @relation("InviteInvitedBy")
   commentMentionsReceived CommentMention[]     @relation("CommentMentions")
   notifications           Notification[]
   createdOrganizations    Organization[]       @relation("OrganizationCreator")
@@ -35,6 +72,9 @@ model User {
   taskAssignees           TaskAssignee[]
   createdWorkspaces       Workspace[]          @relation("WorkspaceCreator")
   workspaceMembers        WorkspaceMember[]
+
+  accounts Account[]
+  sessions Session[]
 }
 
 model Organization {
@@ -44,7 +84,7 @@ model Organization {
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
   createdById String
-  invites     WorkspaceInvite[]
+  invites     Invite[]
   createdBy   User                 @relation("OrganizationCreator", fields: [createdById], references: [id])
   members     OrganizationMember[]
   workspaces  Workspace[]
@@ -80,7 +120,7 @@ model Workspace {
   logs             AuditLog[]
   comments         Comment[]
   commentReactions CommentReaction[]
-  invites          WorkspaceInvite[]
+  invites          Invite[]
   notifications    Notification[]
   projects         Project[]
   tasks            Task[]
@@ -116,7 +156,7 @@ model Project {
   dueDate     DateTime?
   createdById String
   title       String
-  invites     WorkspaceInvite[]
+  invites     Invite[]
   workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   members     ProjectMember[]
   tasks       Task[]
@@ -169,7 +209,7 @@ model Task {
   submittedAt      DateTime?
   approvalRequests ApprovalRequest?
   comments         Comment[]
-  invites          WorkspaceInvite[]
+  invites          Invite[]
   assignee         User?            @relation("TaskAssignee", fields: [assigneeId], references: [id])
   createdBy        User             @relation("TaskCreator", fields: [createdById], references: [id])
   project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -283,7 +323,7 @@ model Notification {
   @@index([userId, isRead])
 }
 
-model WorkspaceInvite {
+model Invite {
   id              String         @id @default(cuid())
   email           String
   tokenHash       String         @unique
@@ -314,6 +354,10 @@ model WorkspaceInvite {
   @@index([status])
   @@index([expiresAt])
   @@index([invitedByUserId])
+
+  // Keep the public API name as `Invite`, but map to the existing table name.
+  // Some databases in the wild still have the legacy "WorkspaceInvite" table.
+  @@map("WorkspaceInvite")
 }
 
 model AuditLog {

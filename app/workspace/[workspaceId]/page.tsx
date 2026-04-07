@@ -57,16 +57,11 @@ export default async function WorkspacePage({
   return (
     <div className="space-y-8">
       {/* Greeting Banner */}
-      <div 
-        className=" border border-border bg-surface p-8 overflow-hidden relative"
-        style={{
-          background: 'radial-gradient(circle 800px at 50% -50%, var(--color-surface), var(--color-background))'
-        }}
-      >
-        <h1 className="font-display text-2xl font-semibold mb-1 text-white">
+      <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+        <h1 className="mb-1 font-display text-2xl font-semibold text-gray-900">
           Good morning, {user.name || user.email}
         </h1>
-        <p className="text-sm text-secondary text-white">
+        <p className="text-sm text-gray-600">
           You have {stats.openTasks} tasks this week
         </p>
       </div>
