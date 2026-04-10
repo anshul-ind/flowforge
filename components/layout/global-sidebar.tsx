@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { resolveAppShellLogoHref } from '@/lib/navigation/resolve-app-shell-logo-href'
 import { ChevronDown, Menu, Settings, X, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -271,7 +272,7 @@ export function GlobalSidebar({
     </nav>
   )
 
-  const sidebarLogoHref = workspaceId ? `/workspace/${workspaceId}` : '/'
+  const sidebarLogoHref = resolveAppShellLogoHref(pathname)
 
   const headerBlock = (
     <div className="shrink-0 border-b border-white/10 bg-[#171717] px-2 py-4">

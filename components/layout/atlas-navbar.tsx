@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { ChevronDown, Search, HelpCircle, Layout as LayoutIcon, Settings, LogOut } from 'lucide-react'
 import { NotificationPopover } from '@/components/notification/notification-popover'
 import { FlowForgeNavbarLogo } from '@/components/brand/flowforge-brand'
+import { resolveAppShellLogoHref } from '@/lib/navigation/resolve-app-shell-logo-href'
 import { cn } from '@/lib/utils'
 
 const DROPDOWN_CLOSE_MS = 280
@@ -33,6 +34,7 @@ export function AtlasNavbar({
     scoped: boolean
   } | null>(null)
   const router = useRouter()
+  const pathname = usePathname()
 
   const orgCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const userCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -107,7 +109,7 @@ export function AtlasNavbar({
       inviteScopeFetch.scoped
   )
 
-  const brandHref = workspaceId ? `/workspace/${workspaceId}` : '/'
+  const brandHref = resolveAppShellLogoHref(pathname)
 
   const getInitials = (name: string) => {
     return name
