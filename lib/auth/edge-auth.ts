@@ -11,13 +11,29 @@ import type { NextRequest } from "next/server";
  * to `/sign-in`. Authorization is still enforced server-side in routes via
  * `requireUser()` / `resolveTenantContext()`.
  */
+/**
+ * Detect session cookie presence without decoding JWT (edge-safe).
+ * Auth.js may split large JWTs into chunked cookies (`name.0`, `name.1`, …).
+ * Exact-name checks alone treat logged-in users as logged out → middleware
+ * redirects every `/workspace/*` navigation to sign-in.
+ */
 function hasAuthCookie(req: NextRequest): boolean {
-  // Auth.js / NextAuth v5
-  if (req.cookies.get("__Secure-authjs.session-token")) return true;
-  if (req.cookies.get("authjs.session-token")) return true;
-  // Legacy names (in case of older cookies lingering)
-  if (req.cookies.get("__Secure-next-auth.session-token")) return true;
-  if (req.cookies.get("next-auth.session-token")) return true;
+  for (const { name } of req.cookies.getAll()) {
+    if (
+      name === "authjs.session-token" ||
+      name.startsWith("authjs.session-token.") ||
+      name === "__Secure-authjs.session-token" ||
+      name.startsWith("__Secure-authjs.session-token.") ||
+      name === "__Host-authjs.session-token" ||
+      name.startsWith("__Host-authjs.session-token.") ||
+      name === "next-auth.session-token" ||
+      name.startsWith("next-auth.session-token.") ||
+      name === "__Secure-next-auth.session-token" ||
+      name.startsWith("__Secure-next-auth.session-token.")
+    ) {
+      return true;
+    }
+  }
   return false;
 }
 
