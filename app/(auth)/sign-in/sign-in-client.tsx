@@ -115,7 +115,7 @@ export function SignInClient({
               </div>
             </div>
             <div>
-              <h3 className="font-semibold">Real-time Collaboration</h3>
+              <h3 className="font-semibold">Real-time Collaboration & sharing with flowforge</h3>
               <p className="mt-1 text-sm text-black/70">Work together with your team in real-time</p>
             </div>
           </div>
