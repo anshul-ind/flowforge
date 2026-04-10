@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "prisma migrate deploy && prisma generate && next build",
+    "build": "node ./scripts/vercel-build.mjs",
     "start": "next start",
     "start:prod": "next start",
     "db:migrate:deploy": "prisma migrate deploy",
