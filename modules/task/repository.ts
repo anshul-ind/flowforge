@@ -28,6 +28,13 @@ export class TaskRepository {
     });
     if (!project) return [];
 
+    if (
+      this.tenant.restrictedProjectId &&
+      projectId !== this.tenant.restrictedProjectId
+    ) {
+      return [];
+    }
+
     const dueClause = taskDueWhere(filters?.due ?? 'all');
     const qOr = taskKeywordOr(filters?.q ?? '');
 
@@ -40,6 +47,9 @@ export class TaskRepository {
     };
 
     const andParts: Prisma.TaskWhereInput[] = [baseWhere];
+    if (this.tenant.restrictedTaskId) {
+      andParts.push({ id: this.tenant.restrictedTaskId });
+    }
     if (this.tenant.role === 'TASK_ASSIGNEE') {
       andParts.push({
         OR: [
@@ -86,10 +96,19 @@ export class TaskRepository {
    * Enforces workspace scoping
    */
   async getTask(taskId: string): Promise<Task | null> {
+    if (
+      this.tenant.restrictedTaskId &&
+      taskId !== this.tenant.restrictedTaskId
+    ) {
+      return null;
+    }
     return await prisma.task.findFirst({
       where: {
         id: taskId,
         workspaceId: this.tenant.workspaceId,
+        ...(this.tenant.restrictedProjectId
+          ? { projectId: this.tenant.restrictedProjectId }
+          : {}),
       },
       include: {
         assignee: { select: { id: true, name: true, email: true } },

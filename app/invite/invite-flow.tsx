@@ -167,7 +167,8 @@ export async function InviteFlow({
       ? `You will get access to the project "${invite.project!.title}" in ${invite.workspace.name}.`
       : null
 
-  const heading = scopedToTask || scopedToProjectOnly ? 'You are invited' : 'Join workspace'
+  const heading =
+    scopedToTask || scopedToProjectOnly ? "You're invited to collaborate" : 'Join as a team member'
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
@@ -179,7 +180,8 @@ export async function InviteFlow({
           {inviteError}
         </div>
       ) : null}
-      <h1 className="text-2xl font-bold text-gray-900">{heading}</h1>
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">FlowForge invitation</p>
+      <h1 className="mt-2 text-2xl font-bold text-gray-900">{heading}</h1>
       <p className="mt-2 text-gray-600">
         {scopeLine ? (
           <>
@@ -202,13 +204,16 @@ export async function InviteFlow({
 
       {!session?.user?.id ? (
         <div className="mt-8 space-y-4">
-          <p className="text-sm text-gray-600">Sign in or create an account to accept.</p>
+          <p className="text-sm text-gray-600">
+            Sign in with your FlowForge account to review and accept this invite. You&apos;ll return here
+            automatically after signing in.
+          </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link
               href={`/sign-in?callbackUrl=${encodeURIComponent(cb)}`}
               className="rounded-lg bg-black px-4 py-2 text-center text-sm font-semibold text-white hover:bg-gray-900"
             >
-              Sign in
+              Sign in to continue
             </Link>
             <Link
               href={`/sign-up?callbackUrl=${encodeURIComponent(cb)}`}

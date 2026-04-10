@@ -39,7 +39,7 @@ export function InviteAcceptForm({ token }: { token: string }) {
           'hover:bg-gray-900 disabled:opacity-50'
         )}
       >
-        {pending ? 'Joining…' : 'Accept & join workspace'}
+        {pending ? 'Joining…' : 'Join now'}
       </button>
     </form>
   )

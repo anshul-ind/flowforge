@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import type { Prisma } from '@/lib/generated/prisma';
 import { TenantContext } from '@/lib/tenant/tenant-context';
 
 /**
@@ -21,10 +22,22 @@ export class SearchService {
     const normalizedQuery = query.trim();
 
     try {
+      const projectScopeWhere =
+        this.tenant.restrictedProjectId != null
+          ? { id: this.tenant.restrictedProjectId }
+          : {}
+      const taskScopeWhere: Prisma.TaskWhereInput = {}
+      if (this.tenant.restrictedTaskId) {
+        taskScopeWhere.id = this.tenant.restrictedTaskId
+      } else if (this.tenant.restrictedProjectId) {
+        taskScopeWhere.projectId = this.tenant.restrictedProjectId
+      }
+
       const [projects, tasks] = await Promise.all([
         prisma.project.findMany({
           where: {
             workspaceId: this.tenant.workspaceId,
+            ...projectScopeWhere,
             OR: [
               { title: { contains: normalizedQuery, mode: 'insensitive' } },
               { description: { contains: normalizedQuery, mode: 'insensitive' } },
@@ -43,6 +56,7 @@ export class SearchService {
         prisma.task.findMany({
           where: {
             workspaceId: this.tenant.workspaceId,
+            ...taskScopeWhere,
             OR: [
               { title: { contains: normalizedQuery, mode: 'insensitive' } },
               { description: { contains: normalizedQuery, mode: 'insensitive' } },

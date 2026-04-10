@@ -1,5 +1,7 @@
+import { notFound } from 'next/navigation'
 import { requireUser } from '@/lib/auth/require-user'
 import { resolveTenantContext } from '@/lib/tenant/resolve-tenant'
+import { isScopedInviteMember } from '@/lib/tenant/invite-restriction'
 import { WorkspaceService } from '@/modules/workspace/service'
 import { WorkspacePolicy } from '@/modules/workspace/policies'
 import { ForbiddenError } from '@/lib/errors'
@@ -23,6 +25,10 @@ export default async function SettingsPage({
 
   if (!tenant) {
     throw new ForbiddenError('Workspace access denied')
+  }
+
+  if (isScopedInviteMember(tenant)) {
+    notFound()
   }
 
   const service = new WorkspaceService(tenant)

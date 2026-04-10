@@ -29,6 +29,16 @@ export type TenantContext = {
    * Used for authorization decisions
    */
   role: WorkspaceRole;
+
+  /**
+   * When set, the user accepted a project-scoped invite — list/search/nav stay within this project.
+   */
+  restrictedProjectId?: string | null;
+
+  /**
+   * When set, the user accepted a task-scoped invite — task views are limited accordingly.
+   */
+  restrictedTaskId?: string | null;
   
   /**
    * Optional request ID for tracing/debugging

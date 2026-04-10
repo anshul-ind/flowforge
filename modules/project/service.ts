@@ -57,6 +57,9 @@ export class ProjectService {
     if (!ProjectPolicy.canCreate(this.tenant)) {
       throw new ForbiddenError('Cannot create projects');
     }
+    if (this.tenant.restrictedProjectId || this.tenant.restrictedTaskId) {
+      throw new ForbiddenError('Cannot create projects with a scoped invitation');
+    }
 
     // Sanitize input
     const sanitizedData = {

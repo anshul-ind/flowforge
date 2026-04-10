@@ -1,6 +1,8 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { requireUser } from '@/lib/auth/require-user'
 import { resolveTenantContext } from '@/lib/tenant/resolve-tenant'
+import { isScopedInviteMember } from '@/lib/tenant/invite-restriction'
 import { ForbiddenError } from '@/lib/errors'
 import { canInvite } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -17,6 +19,10 @@ export default async function WorkspaceInvitationsPage({
 
   if (!tenant) {
     throw new ForbiddenError('Workspace access denied')
+  }
+
+  if (isScopedInviteMember(tenant)) {
+    notFound()
   }
 
   if (!canInvite(tenant.role)) {

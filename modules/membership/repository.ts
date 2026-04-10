@@ -39,14 +39,21 @@ export class MembershipRepository {
       workspaceId: string
       workspaceRole: WorkspaceRole
       existing: WorkspaceMember | null
+      restrictedProjectId?: string | null
+      restrictedTaskId?: string | null
     }
   ) {
+    const restrictionData = {
+      restrictedProjectId: input.restrictedProjectId ?? null,
+      restrictedTaskId: input.restrictedTaskId ?? null,
+    }
     if (input.existing) {
       return tx.workspaceMember.update({
         where: { id: input.existing.id },
         data: {
           status: 'ACTIVE',
           role: input.existing.role === 'OWNER' ? input.existing.role : input.workspaceRole,
+          ...restrictionData,
         },
       })
     }
@@ -56,6 +63,7 @@ export class MembershipRepository {
         userId: input.userId,
         role: input.workspaceRole,
         status: 'ACTIVE',
+        ...restrictionData,
       },
     })
   }

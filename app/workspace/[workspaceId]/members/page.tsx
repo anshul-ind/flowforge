@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth/require-user';
 import { resolveTenantContext } from '@/lib/tenant/resolve-tenant';
+import { isScopedInviteMember } from '@/lib/tenant/invite-restriction';
 import { WorkspaceService } from '@/modules/workspace/service';
 import { ForbiddenError } from '@/lib/errors';
 import { canInvite } from '@/lib/permissions';
@@ -24,6 +26,10 @@ export default async function MembersPage({
 
   if (!tenant) {
     throw new ForbiddenError('Workspace access denied');
+  }
+
+  if (isScopedInviteMember(tenant)) {
+    notFound();
   }
 
   // Fetch members

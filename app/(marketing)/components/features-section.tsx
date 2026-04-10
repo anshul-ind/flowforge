@@ -62,7 +62,7 @@ export function FeaturesSection() {
   }
 
   return (
-    <section className="py-20 md:py-32 bg-surface">
+    <section id="features" className="scroll-mt-20 py-20 md:py-32 bg-surface">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div

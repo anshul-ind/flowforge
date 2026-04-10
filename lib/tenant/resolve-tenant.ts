@@ -26,6 +26,8 @@ export async function resolveTenantContext(
     organizationId: membership.workspace.organizationId,
     userId: membership.userId,
     role: membership.role,
+    restrictedProjectId: membership.restrictedProjectId,
+    restrictedTaskId: membership.restrictedTaskId,
   }
 }
 

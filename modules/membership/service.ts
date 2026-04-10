@@ -20,6 +20,24 @@ type ScopeInput = {
   taskId?: string | null
 }
 
+function computeInviteRestrictionFields(
+  workspaceId: string,
+  projectId?: string | null,
+  taskId?: string | null,
+  effectiveProjectFromTask?: string | null
+): { restrictedProjectId: string | null; restrictedTaskId: string | null } {
+  if (taskId) {
+    return {
+      restrictedTaskId: taskId,
+      restrictedProjectId: effectiveProjectFromTask ?? projectId ?? null,
+    }
+  }
+  if (projectId) {
+    return { restrictedProjectId: projectId, restrictedTaskId: null }
+  }
+  return { restrictedProjectId: null, restrictedTaskId: null }
+}
+
 export class MembershipProvisioningService {
   static async applyProjectAndTaskScope(
     tx: Prisma.TransactionClient,
@@ -61,6 +79,27 @@ export class MembershipProvisioningService {
     input: ScopeInput
   ): Promise<void> {
     await this.applyProjectAndTaskScope(tx, input)
+
+    let effectiveProject = input.projectId ?? null
+    if (input.taskId) {
+      const t = await tx.task.findFirst({
+        where: { id: input.taskId, workspaceId: input.workspaceId },
+        select: { projectId: true },
+      })
+      if (t) effectiveProject = t.projectId
+    }
+    const r = computeInviteRestrictionFields(
+      input.workspaceId,
+      input.projectId,
+      input.taskId,
+      effectiveProject
+    )
+    await tx.workspaceMember.update({
+      where: {
+        userId_workspaceId: { userId: input.userId, workspaceId: input.workspaceId },
+      },
+      data: r,
+    })
   }
 
   static async provisionWorkspaceInvite(
@@ -72,11 +111,31 @@ export class MembershipProvisioningService {
       organizationId: input.organizationId,
     })
 
+    let effectiveProject = input.projectId ?? null
+    if (input.taskId) {
+      const t = await tx.task.findFirst({
+        where: { id: input.taskId, workspaceId: input.workspaceId },
+        select: { projectId: true },
+      })
+      if (t) effectiveProject = t.projectId
+    }
+    const hasScope = Boolean(input.projectId || input.taskId)
+    const restrictions = hasScope
+      ? computeInviteRestrictionFields(
+          input.workspaceId,
+          input.projectId,
+          input.taskId,
+          effectiveProject
+        )
+      : { restrictedProjectId: null as string | null, restrictedTaskId: null as string | null }
+
     await MembershipRepository.applyWorkspaceRoleFromInvite(tx, {
       userId: input.userId,
       workspaceId: input.workspaceId,
       workspaceRole: input.workspaceRole,
       existing: input.existing,
+      restrictedProjectId: restrictions.restrictedProjectId,
+      restrictedTaskId: restrictions.restrictedTaskId,
     })
 
     await this.applyProjectAndTaskScope(tx, {

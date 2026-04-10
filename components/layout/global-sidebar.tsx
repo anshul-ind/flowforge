@@ -9,6 +9,7 @@ import {
   buildSidebarQuickLinks,
   buildSidebarSections,
   type SidebarNavItem,
+  type SidebarNavScope,
   type SidebarNavSection,
 } from '@/components/layout/sidebar-nav-build'
 
@@ -43,6 +44,11 @@ export function GlobalSidebar({
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [userWorkspaces, setUserWorkspaces] = useState<UserWorkspaceListItem[]>([])
+  const [navScopeFetch, setNavScopeFetch] = useState<{
+    workspaceId: string
+    restrictedProjectId: string | null
+    restrictedTaskId: string | null
+  } | null>(null)
 
   const settingsHref = workspaceId ? `/workspace/${workspaceId}/settings` : '/workspace'
 
@@ -65,6 +71,43 @@ export function GlobalSidebar({
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!workspaceId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/workspace/${workspaceId}/nav-scope`, {
+          credentials: 'include',
+        })
+        if (!res.ok) return
+        const data = (await res.json()) as {
+          ok?: boolean
+          restrictedProjectId?: string | null
+          restrictedTaskId?: string | null
+        }
+        if (cancelled || !data?.ok) return
+        setNavScopeFetch({
+          workspaceId,
+          restrictedProjectId: data.restrictedProjectId ?? null,
+          restrictedTaskId: data.restrictedTaskId ?? null,
+        })
+      } catch {
+        // non-fatal
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [workspaceId])
+
+  const navScope: SidebarNavScope =
+    workspaceId && navScopeFetch?.workspaceId === workspaceId
+      ? {
+          restrictedProjectId: navScopeFetch.restrictedProjectId,
+          restrictedTaskId: navScopeFetch.restrictedTaskId,
+        }
+      : null
 
   const clearCollapseTimer = useCallback(() => {
     if (collapseTimer.current) {
@@ -100,8 +143,13 @@ export function GlobalSidebar({
   const isActive = (href: string) =>
     href !== '#' && (pathname === href || currentPath === href)
 
-  const navSections = buildSidebarSections({ workspaceId, projectId, userWorkspaces })
-  const quickLinks = buildSidebarQuickLinks(workspaceId)
+  const navSections = buildSidebarSections({
+    workspaceId,
+    projectId,
+    userWorkspaces,
+    navScope,
+  })
+  const quickLinks = buildSidebarQuickLinks(workspaceId, navScope)
 
   const quickSection: SidebarNavSection | null =
     quickLinks.length > 0
@@ -223,10 +271,12 @@ export function GlobalSidebar({
     </nav>
   )
 
+  const sidebarLogoHref = workspaceId ? `/workspace/${workspaceId}` : '/'
+
   const headerBlock = (
     <div className="shrink-0 border-b border-white/10 bg-[#171717] px-2 py-4">
       <Link
-        href="/"
+        href={sidebarLogoHref}
         className={cn(
           'group flex items-center gap-3 rounded-lg transition-colors hover:bg-white/5',
           labelsVisible ? 'px-2' : 'justify-center px-0'
@@ -275,11 +325,15 @@ export function GlobalSidebar({
     </div>
   )
 
+  const hideWorkspaceSettings =
+    navScope != null &&
+    (navScope.restrictedProjectId != null || navScope.restrictedTaskId != null)
+
   const asideInner = (
     <div className="flex h-full min-h-0 flex-col bg-[#171717]">
       {headerBlock}
       <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">{renderSections()}</div>
-      {settingsBlock}
+      {hideWorkspaceSettings ? null : settingsBlock}
     </div>
   )
 

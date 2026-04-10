@@ -9,7 +9,7 @@ export function QuoteSection() {
   const prefersReduced = useReducedMotion()
 
   return (
-    <section className="py-20 md:py-32 bg-surface">
+    <section id="pricing" className="scroll-mt-20 py-20 md:py-32 bg-surface">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

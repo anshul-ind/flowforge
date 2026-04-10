@@ -20,6 +20,17 @@ export class ProjectRepository {
   }): Promise<Project[]> {
     const statusFilter = filters?.status ? { status: filters.status } : {}
 
+    if (this.tenant.restrictedProjectId) {
+      return await prisma.project.findMany({
+        where: {
+          workspaceId: this.tenant.workspaceId,
+          id: this.tenant.restrictedProjectId,
+          ...statusFilter,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
     if (this.tenant.role === 'TASK_ASSIGNEE') {
       return await prisma.project.findMany({
         where: {
@@ -64,6 +75,13 @@ export class ProjectRepository {
       },
     });
     if (!row) return null;
+
+    if (
+      this.tenant.restrictedProjectId &&
+      projectId !== this.tenant.restrictedProjectId
+    ) {
+      return null
+    }
 
     if (this.tenant.role === 'TASK_ASSIGNEE') {
       const allowed = await prisma.project.findFirst({

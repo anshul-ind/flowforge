@@ -30,7 +30,7 @@ export function HowItWorksSection() {
   const prefersReduced = useReducedMotion()
 
   return (
-    <section className="py-20 md:py-32 bg-background">
+    <section id="resources" className="scroll-mt-20 py-20 md:py-32 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div

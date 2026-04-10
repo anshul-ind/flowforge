@@ -40,9 +40,15 @@ function textOrClause(q: string): Prisma.TaskWhereInput['OR'] | undefined {
   ]
 }
 
+export type WorkspaceSearchNavScope = {
+  restrictedProjectId?: string | null
+  restrictedTaskId?: string | null
+}
+
 export async function runWorkspaceSearch(
   workspaceId: string,
-  input: WorkspaceSearchQuery
+  input: WorkspaceSearchQuery,
+  navScope?: WorkspaceSearchNavScope | null
 ): Promise<{
   results: SearchResultItem[]
   page: number
@@ -56,20 +62,42 @@ export async function runWorkspaceSearch(
   const taskDue = taskDueClause(due)
   const qOr = textOrClause(q)
 
+  const lockedProjectId =
+    navScope?.restrictedProjectId != null && navScope.restrictedProjectId !== ''
+      ? navScope.restrictedProjectId
+      : null
+  const effectiveProjectFilter = lockedProjectId ?? projectId ?? undefined
+
   const projectWhere: Prisma.ProjectWhereInput = {
     workspaceId,
-    ...(projectId ? { id: projectId } : {}),
+    ...(effectiveProjectFilter ? { id: effectiveProjectFilter } : {}),
     ...(projectStatus ? { status: projectStatus } : {}),
     ...(qOr ? { OR: qOr as Prisma.ProjectWhereInput['OR'] } : {}),
   }
 
+  if (
+    lockedProjectId &&
+    projectId &&
+    projectId !== lockedProjectId
+  ) {
+    projectWhere.id = { in: [] }
+  }
+
+  const taskScopeClause: Prisma.TaskWhereInput = {}
+  if (navScope?.restrictedTaskId) {
+    taskScopeClause.id = navScope.restrictedTaskId
+  } else if (lockedProjectId) {
+    taskScopeClause.projectId = lockedProjectId
+  }
+
   const taskWhereBase: Prisma.TaskWhereInput = {
     workspaceId,
-    ...(projectId ? { projectId } : {}),
+    ...(projectId && !lockedProjectId ? { projectId } : {}),
     ...(taskStatus ? { status: taskStatus } : {}),
     ...(assigneeId ? { assigneeId } : {}),
     ...(taskDue ?? {}),
     ...(qOr ? { OR: qOr } : {}),
+    ...taskScopeClause,
   }
 
   const orderProject: Prisma.ProjectOrderByWithRelationInput[] = [

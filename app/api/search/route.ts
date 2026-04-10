@@ -47,7 +47,11 @@ export async function GET(request: NextRequest) {
 
     const { results, page, limit, total, hasMore } = await runWorkspaceSearch(
       input.workspaceId,
-      input
+      input,
+      {
+        restrictedProjectId: membership.restrictedProjectId,
+        restrictedTaskId: membership.restrictedTaskId,
+      }
     )
 
     return NextResponse.json({
