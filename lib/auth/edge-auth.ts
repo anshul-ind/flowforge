@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const AUTH_DEBUG = process.env.AUTH_DEBUG === "1";
+
 /**
  * Edge-safe route guard.
  *
@@ -45,9 +47,37 @@ export default function edgeAuth(req: NextRequest) {
   const isProtectedRoute = req.nextUrl.pathname.startsWith("/workspace");
   const { pathname } = req.nextUrl;
 
+  if (AUTH_DEBUG) {
+    const cookieNames = req.cookies.getAll().map((c) => c.name);
+    const hasSessionCookieName = cookieNames.some(
+      (name) =>
+        name === "authjs.session-token" ||
+        name.startsWith("authjs.session-token.") ||
+        name === "__Secure-authjs.session-token" ||
+        name.startsWith("__Secure-authjs.session-token.") ||
+        name === "__Host-authjs.session-token" ||
+        name.startsWith("__Host-authjs.session-token.") ||
+        name === "next-auth.session-token" ||
+        name.startsWith("next-auth.session-token.") ||
+        name === "__Secure-next-auth.session-token" ||
+        name.startsWith("__Secure-next-auth.session-token.")
+    );
+
+    console.log("[edge-auth]", {
+      pathname,
+      host: req.headers.get("host"),
+      forwardedProto: req.headers.get("x-forwarded-proto"),
+      isProtectedRoute,
+      isAuthenticated,
+      hasSessionCookieName,
+      cookieCount: cookieNames.length,
+    });
+  }
+
   if (pathname === "/invite/accept") {
     const token = req.nextUrl.searchParams.get("token") ?? "";
     if (!isAuthenticated) {
+      if (AUTH_DEBUG) console.log("[edge-auth] redirect", { pathname, reason: "invite-accept:no-session" });
       const signInUrl = new URL("/sign-in", req.nextUrl.origin);
       signInUrl.searchParams.set(
         "callbackUrl",
@@ -62,6 +92,7 @@ export default function edgeAuth(req: NextRequest) {
   if (inviteMatch && inviteMatch[1] !== "accept") {
     const token = inviteMatch[1];
     if (!isAuthenticated) {
+      if (AUTH_DEBUG) console.log("[edge-auth] redirect", { pathname, reason: "invite-token:no-session" });
       const signInUrl = new URL("/sign-in", req.nextUrl.origin);
       signInUrl.searchParams.set(
         "callbackUrl",
@@ -73,6 +104,7 @@ export default function edgeAuth(req: NextRequest) {
   }
 
   if (isProtectedRoute && !isAuthenticated) {
+    if (AUTH_DEBUG) console.log("[edge-auth] redirect", { pathname, reason: "workspace:no-session" });
     const signInUrl = new URL("/sign-in", req.nextUrl.origin);
     signInUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
     return NextResponse.redirect(signInUrl);
