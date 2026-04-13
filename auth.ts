@@ -3,7 +3,7 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { safeCallbackPath } from "@/lib/auth/safe-callback-path";
+import { safeCallbackFromUrl } from "@/lib/auth/safe-callback-path";
 import { signinLimiter } from "@/lib/rate-limiting/rate-limiter";
 import { WorkspaceRepository } from "@/modules/workspace/repository";
 
@@ -12,6 +12,7 @@ const googleClientId =
 const googleClientSecret =
   process.env.AUTH_GOOGLE_SECRET?.trim() || process.env.GOOGLE_SECRET?.trim() || '';
 const googleConfigured = Boolean(googleClientId && googleClientSecret);
+const AUTH_DEBUG = process.env.AUTH_DEBUG === "1";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
@@ -104,19 +105,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
      * Default fallback matches post-login routing used elsewhere.
      */
     async redirect({ url, baseUrl }) {
-      try {
-        const base = new URL(baseUrl);
-        const parsed = new URL(url, baseUrl);
-        if (parsed.origin !== base.origin) {
-          return `${baseUrl}/workspace/redirects`;
+      const fallback = `${baseUrl}/workspace/redirects`;
+      const safe = safeCallbackFromUrl(url, baseUrl);
+
+      if (AUTH_DEBUG) {
+        let parsedOrigin: string | null = null;
+        let baseOrigin: string | null = null;
+        let parsedPath: string | null = null;
+        try {
+          const base = new URL(baseUrl);
+          const parsed = new URL(url, baseUrl);
+          baseOrigin = base.origin;
+          parsedOrigin = parsed.origin;
+          parsedPath = `${parsed.pathname}${parsed.search}`;
+        } catch {
+          // ignore parse errors
         }
-        const pathWithQuery = `${parsed.pathname}${parsed.search}`;
-        const safe = safeCallbackPath(pathWithQuery);
-        if (safe) return `${baseUrl}${safe}`;
-      } catch {
-        // ignore invalid url
+        console.log("[auth.redirect]", {
+          url,
+          baseUrl,
+          baseOrigin,
+          parsedOrigin,
+          parsedPath,
+          safe,
+          decision: safe ? "allow" : "fallback",
+        });
       }
-      return `${baseUrl}/workspace/redirects`;
+
+      return safe ? `${baseUrl}${safe}` : fallback;
     },
 
     async jwt({ token, user, account, profile }) {

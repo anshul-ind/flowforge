@@ -106,7 +106,7 @@ export default function edgeAuth(req: NextRequest) {
   if (isProtectedRoute && !isAuthenticated) {
     if (AUTH_DEBUG) console.log("[edge-auth] redirect", { pathname, reason: "workspace:no-session" });
     const signInUrl = new URL("/sign-in", req.nextUrl.origin);
-    signInUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
+    signInUrl.searchParams.set("callbackUrl", `${req.nextUrl.pathname}${req.nextUrl.search}`);
     return NextResponse.redirect(signInUrl);
   }
 
