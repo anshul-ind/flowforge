@@ -1,6 +1,7 @@
 'use server';
 
 import { requireUser } from '@/lib/auth/require-user';
+import { auth } from '@/auth';
 import { resolveTenantContext } from '@/lib/tenant/resolve-tenant';
 import { NotificationService } from './service';
 import { successResult, errorResult, ActionResult } from '@/types/action-result';
@@ -51,7 +52,13 @@ export async function getUnreadCountAction(
   workspaceId: string
 ): Promise<ActionResult<{ count: number }>> {
   try {
-    const user = await requireUser();
+    // This action is often called for UI badges; treat "not signed in"
+    // as a valid state instead of triggering a redirect exception.
+    const session = await auth();
+    const user = session?.user;
+    if (!user?.id) {
+      return successResult({ count: 0 }, 'Not signed in');
+    }
     const tenant = await resolveTenantContext(workspaceId, user.id);
 
     if (!tenant) {
