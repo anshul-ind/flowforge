@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
+import { cookies } from 'next/headers';
 
 const AUTH_DEBUG = process.env.AUTH_DEBUG === '1';
 
@@ -30,6 +31,24 @@ const AUTH_DEBUG = process.env.AUTH_DEBUG === '1';
  * }
  */
 export async function requireUser() {
+  const cookieStore = AUTH_DEBUG ? await cookies() : null;
+  const cookieNames = AUTH_DEBUG ? cookieStore?.getAll().map((c) => c.name) ?? [] : [];
+  const hasSessionCookieName = AUTH_DEBUG
+    ? cookieNames.some(
+        (name) =>
+          name === 'authjs.session-token' ||
+          name.startsWith('authjs.session-token.') ||
+          name === '__Secure-authjs.session-token' ||
+          name.startsWith('__Secure-authjs.session-token.') ||
+          name === '__Host-authjs.session-token' ||
+          name.startsWith('__Host-authjs.session-token.') ||
+          name === 'next-auth.session-token' ||
+          name.startsWith('next-auth.session-token.') ||
+          name === '__Secure-next-auth.session-token' ||
+          name.startsWith('__Secure-next-auth.session-token.')
+      )
+    : false;
+
   const session = await auth();
   
   if (!session || !session.user) {
@@ -39,6 +58,8 @@ export async function requireUser() {
         hasAuthSecret: !!process.env.AUTH_SECRET,
         authUrl: process.env.AUTH_URL,
         nodeEnv: process.env.NODE_ENV,
+        hasSessionCookieName,
+        cookieCount: cookieNames.length,
       });
     }
     // User is not authenticated, redirect to sign-in
