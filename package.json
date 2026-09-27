@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "node ./scripts/vercel-build.mjs",
-    "start": "next start",
+    "dev": "node init && next dev --webpack",
+    "build": "node init && node ./scripts/vercel-build.mjs",
+    "start": "node init && next start",
     "start:prod": "next start",
     "db:migrate:deploy": "prisma migrate deploy",
     "lint": "eslint .",
