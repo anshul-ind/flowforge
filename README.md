@@ -14,10 +14,8 @@ https://flowforge-ivory.vercel.app
 
 ## 📸 Screenshots
 
-<img width="1908" height="995" alt="Screenshot 2026-04-03 190349" src="https://github.com/user-attachments/assets/36cd157a-9300-499a-8c3c-82822146c856" />
 
-  
-
+<img width="1906" height="989" alt="Screenshot 2026-09-27 113816" src="https://github.com/user-attachments/assets/c6ef9184-43ce-4611-ad1b-9ce6fd8400ee" />
 
 ### 🏠 Landing Page
 
